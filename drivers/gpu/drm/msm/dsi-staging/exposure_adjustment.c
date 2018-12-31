@@ -20,6 +20,7 @@
 #include <linux/device.h>
 #include <linux/platform_device.h>
 #include <linux/notifier.h>
+
 #include "dsi_display.h"
 #include "dsi_panel.h"
 #include "../sde/sde_crtc.h"
@@ -127,7 +128,6 @@ bool ea_panel_is_enabled(void)
 {
 	return pcc_backlight_enable;
 }
-
 u32 ea_panel_calc_backlight(u32 bl_lvl)
 {
 	last_level = bl_lvl;

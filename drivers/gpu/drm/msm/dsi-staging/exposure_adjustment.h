@@ -28,8 +28,8 @@
  */
 #define EA_UDFP_WORKAROUND
 #define EA_UDFP_UNLOCK_DELAY       100
-#define ELVSS_OFF_THRESHOLD        1024
-#define EXPOSURE_ADJUSTMENT_MIN    480
+#define ELVSS_OFF_THRESHOLD        258
+#define EXPOSURE_ADJUSTMENT_MIN    5200
 
 /* PCC coefficient when exposure is 255 */
 #define EXPOSURE_ADJUSTMENT_MAX    32768
