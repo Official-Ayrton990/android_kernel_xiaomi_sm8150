@@ -761,4 +761,6 @@ int dsi_display_get_panel_vfp(void *display,
  */
 void dsi_display_set_idle_hint(void *display, bool is_idle);
 
+struct dsi_display *get_main_display(void);
+
 #endif /* _DSI_DISPLAY_H_ */
