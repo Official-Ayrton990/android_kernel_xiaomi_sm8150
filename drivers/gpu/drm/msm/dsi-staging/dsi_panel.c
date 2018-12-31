@@ -24,6 +24,10 @@
 #include "dsi_ctrl_hw.h"
 #include "dsi_parser.h"
 
+#ifdef CONFIG_EXPOSURE_ADJUSTMENT
+#include "exposure_adjustment.h"
+#endif
+
 /**
  * topology is currently defined by a set of following 3 values:
  * 1. num of layer mixers
@@ -803,6 +807,10 @@ int dsi_panel_set_backlight(struct dsi_panel *panel, u32 bl_lvl)
 
 	if (panel->host_config.ext_bridge_num)
 		return 0;
+
+#ifdef CONFIG_EXPOSURE_ADJUSTMENT
+	bl_lvl = ea_panel_calc_backlight(bl_lvl);
+#endif
 
 	pr_debug("backlight type:%d lvl:%d\n", bl->type, bl_lvl);
 	switch (bl->type) {
