@@ -24,6 +24,10 @@
 #include "dsi_ctrl_hw.h"
 #include "dsi_parser.h"
 
+#ifdef CONFIG_KLAPSE
+#include "../sde/klapse.h"
+#endif
+
 /**
  * topology is currently defined by a set of following 3 values:
  * 1. num of layer mixers
@@ -1227,6 +1231,245 @@ static int dsi_panel_parse_triggers(struct dsi_host_common_cfg *host,
 		pr_warn("[%s] fallback to default te-pin-select\n", name);
 		host->te_mode = 1;
 		rc = 0;
+	}
+
+	return rc;
+}
+
+static int dsi_panel_parse_misc_host_config(struct dsi_host_common_cfg *host,
+					    struct dsi_parser_utils *utils,
+					    const char *name)
+{
+	u32 val = 0;
+	int rc = 0;
+
+	rc = utils->read_u32(utils->data, "qcom,mdss-dsi-t-clk-post", &val);
+	if (!rc) {
+		host->t_clk_post = val;
+		pr_debug("[%s] t_clk_post = %d\n", name, val);
+	}
+	
+#ifdef CONFIG_KLAPSE
+	set_rgb_slider(bl_lvl);
+#endif
+
+	val = 0;
+	rc = utils->read_u32(utils->data, "qcom,mdss-dsi-t-clk-pre", &val);
+	if (!rc) {
+		host->t_clk_pre = val;
+		pr_debug("[%s] t_clk_pre = %d\n", name, val);
+	}
+
+	host->ignore_rx_eot = utils->read_bool(utils->data,
+						"qcom,mdss-dsi-rx-eot-ignore");
+
+	host->append_tx_eot = utils->read_bool(utils->data,
+						"qcom,mdss-dsi-tx-eot-append");
+
+	host->ext_bridge_mode = utils->read_bool(utils->data,
+					"qcom,mdss-dsi-ext-bridge-mode");
+
+	host->force_hs_clk_lane = utils->read_bool(utils->data,
+					"qcom,mdss-dsi-force-clock-lane-hs");
+	return 0;
+}
+
+static int dsi_panel_create_sn_buf(struct dsi_panel *panel)
+{
+	struct dsi_panel_vendor_info *const vendor_info = &panel->vendor_info;
+	struct dsi_panel_sn_location *const location = &vendor_info->location;
+	ssize_t rc = 0;
+	u32 sn_str_size;
+	u8 *tmp_sn_buf;
+
+	if (!panel)
+		return -EINVAL;
+
+	if  (!location->addr || !location->sn_length) {
+		pr_err("[%s] invalid location\n", __func__);
+		return -EINVAL;
+	}
+
+	// prepare buffer for bin2hex()
+	// e.g. buf[0] = 0x01 -> sn[0] = '0' and sn[1] = '1'
+	sn_str_size = location->sn_length * 2;
+	tmp_sn_buf = kmalloc(sn_str_size + 1, GFP_KERNEL);
+	if (!tmp_sn_buf)
+		return -ENOMEM;
+
+	mutex_lock(&panel->panel_lock);
+	if (!vendor_info->sn) {
+		vendor_info->is_sn = false;
+		vendor_info->sn = tmp_sn_buf;
+	} else
+		kfree(tmp_sn_buf);
+
+	mutex_unlock(&panel->panel_lock);
+	return rc;
+}
+
+static int dsi_panel_release_sn_buf(struct dsi_panel *panel)
+{
+	struct dsi_panel_vendor_info *const vendor_info = &panel->vendor_info;
+	ssize_t rc = 0;
+
+	if (!panel)
+		return -EINVAL;
+
+	mutex_lock(&panel->panel_lock);
+	kfree(vendor_info->sn);
+	vendor_info->sn = NULL;
+	vendor_info->is_sn = false;
+	mutex_unlock(&panel->panel_lock);
+	return rc;
+}
+
+int dsi_panel_get_sn(struct dsi_panel *panel)
+{
+	struct dsi_panel_vendor_info *const vendor_info = &panel->vendor_info;
+	struct dsi_panel_sn_location *const location = &vendor_info->location;
+	ssize_t rc = 0;
+	u32 read_size, read_back_size, sn_str_size;
+	u8 *buf;
+
+	if (!panel || !panel->panel_initialized) {
+		pr_err("panel is not ready\n");
+		return -EINVAL;
+	}
+
+	read_size = location->start_byte + location->sn_length;
+	buf = kmalloc(read_size, GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+
+	mutex_lock(&panel->panel_lock);
+
+	if (!panel->vendor_info.sn) {
+		rc = -EINVAL;
+		goto out_mutex;
+	}
+
+	read_back_size = mipi_dsi_dcs_read(&panel->mipi_device, location->addr,
+					   buf, read_size);
+	if (read_back_size == read_size) {
+		bin2hex(vendor_info->sn, &buf[location->start_byte],
+			location->sn_length);
+		// e.g. buf[0] = 0x01 -> sn[0] = '0' and sn[1] = '1'
+		sn_str_size = location->sn_length * 2;
+		vendor_info->sn[sn_str_size] = '\0';
+		vendor_info->is_sn = true;
+	} else {
+		rc = -EINVAL;
+		pr_err("failed to read: addr=0x%X, read_back_size=%d, read_size=%d\n",
+		      location->addr, read_back_size, read_size);
+	}
+
+	kfree(buf);
+out_mutex:
+	mutex_unlock(&panel->panel_lock);
+	return rc;
+}
+
+static int dsi_panel_parse_sn_location(struct dsi_panel *panel,
+				       struct device_node *of_node)
+{
+	struct dsi_panel_vendor_info *const vendor_info = &panel->vendor_info;
+	int rc = 0, len = 0;
+	u32 array[3] = {0};
+
+	if (!panel)
+		return -EINVAL;
+
+	len = of_property_count_u32_elems(of_node,
+			"google,mdss-dsi-panel-sn-location");
+	if (len != 3) {
+		pr_err("[%s] invalid format\n", __func__);
+		rc = -EINVAL;
+		goto error;
+	}
+
+	rc = of_property_read_u32_array(of_node,
+			"google,mdss-dsi-panel-sn-location", array, len);
+	if (rc || !array[0] || !array[2]) {
+		pr_err("[%s] invalid format\n", __func__);
+		rc = -EINVAL;
+		goto error;
+	}
+
+	vendor_info->location.addr = array[0];
+	vendor_info->location.start_byte = array[1];
+	vendor_info->location.sn_length = array[2];
+
+	pr_debug("addr=0x%x, start=%d, length=%d",
+		vendor_info->location.addr, vendor_info->location.start_byte,
+		vendor_info->location.sn_length);
+error:
+	return rc;
+}
+
+int dsi_panel_get_vendor_extinfo(struct dsi_panel *panel)
+{
+	struct dsi_panel_vendor_info *const vendor_info = &panel->vendor_info;
+	char buffer[128];
+	size_t bytes = 0;
+	u32 read_addr, read_start, read_len, dsi_read_len;
+	int i, rc = 0;
+
+	mutex_lock(&panel->panel_lock);
+
+	/* Transmit the commands as specified. */
+	for (i = 0; i < vendor_info->extinfo_loc_length; i += 3) {
+		read_addr  = vendor_info->extinfo_loc[i];
+		read_start = vendor_info->extinfo_loc[i + 1];
+		read_len   = vendor_info->extinfo_loc[i + 2];
+
+		/* Compute size of entire DSI read, starting from byte zero. */
+		dsi_read_len = read_start + read_len;
+
+		if (dsi_read_len > sizeof(buffer)) {
+			pr_err("Read is too large for buffer.\n");
+			rc = -EINVAL;
+			goto error;
+		} else if (read_len > vendor_info->extinfo_length - bytes) {
+			pr_err("Ran out of space reading extinfo data.\n");
+			rc = -EINVAL;
+			goto error;
+		}
+
+		rc = mipi_dsi_dcs_read(&panel->mipi_device,
+				       read_addr,
+				       buffer,
+				       dsi_read_len);
+		if (rc < 0) {
+			pr_err("mipi_dsi_dcs_read failed with rc=%d.\n", rc);
+			goto error;
+		}
+
+		/* Copy only the the specified portion of the DSI read, which is
+		 * read_len bytes starting at read_start.
+		 */
+		memcpy(&vendor_info->extinfo[bytes], &buffer[read_start],
+		       read_len);
+		bytes += read_len;
+	}
+
+	vendor_info->extinfo_read = bytes;
+	rc = 0;
+
+error:
+
+	if (rc < 0) {
+		pr_err("Failed to read vendor extinfo. Freeing extinfo memory.\n");
+
+		vendor_info->extinfo_loc_length = 0;
+		vendor_info->extinfo_length = 0;
+		vendor_info->extinfo_read = 0;
+
+		kfree(vendor_info->extinfo_loc);
+		vendor_info->extinfo_loc = NULL;
+
+		kfree(vendor_info->extinfo);
+		vendor_info->extinfo = NULL;
 	}
 
 	return rc;
