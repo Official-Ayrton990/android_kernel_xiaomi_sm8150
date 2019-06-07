@@ -278,6 +278,56 @@ uint8_t q6asm_get_stream_id_from_token(uint32_t token)
 }
 EXPORT_SYMBOL(q6asm_get_stream_id_from_token);
 
+static uint32_t adsp_reg_event_opcode[] = {
+	ASM_STREAM_CMD_REGISTER_PP_EVENTS,
+	ASM_STREAM_CMD_REGISTER_ENCDEC_EVENTS,
+	ASM_STREAM_CMD_REGISTER_IEC_61937_FMT_UPDATE };
+
+static int is_adsp_reg_event(uint32_t cmd)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(adsp_reg_event_opcode); i++) {
+		if (cmd == adsp_reg_event_opcode[i])
+			return i;
+	}
+	return -EINVAL;
+}
+
+static uint32_t adsp_raise_event_opcode[] = {
+	ASM_STREAM_PP_EVENT,
+	ASM_STREAM_CMD_ENCDEC_EVENTS,
+	ASM_IEC_61937_MEDIA_FMT_EVENT };
+
+static int is_adsp_raise_event(uint32_t cmd)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(adsp_raise_event_opcode); i++) {
+		if (cmd == adsp_raise_event_opcode[i])
+			return i;
+	}
+	return -EINVAL;
+}
+
+#define OUT_BUFFER_SIZE 56
+#define IN_BUFFER_SIZE 24
+
+static struct timeval out_cold_tv;
+static struct timeval out_warm_tv;
+static struct timeval out_cont_tv;
+static struct timeval in_cont_tv;
+static long out_enable_flag;
+static long in_enable_flag;
+static struct dentry *out_dentry;
+static struct dentry *in_dentry;
+static int in_cont_index;
+/*This var is used to keep track of first write done for cold output latency */
+static int out_cold_index;
+static char *out_buffer;
+static char *in_buffer;
+
+#ifdef CONFIG_DEBUG_FS
 static int audio_output_latency_dbgfs_open(struct inode *inode,
 							struct file *file)
 {
