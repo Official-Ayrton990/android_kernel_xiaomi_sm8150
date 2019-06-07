@@ -313,6 +313,7 @@ static int audio_open(struct inode *inode, struct file *file)
 		goto fail;
 	}
 
+#ifdef CONFIG_DEBUG_FS
 	snprintf(name, sizeof(name), "msm_ape_%04x", audio->ac->session);
 	audio->dentry = config_debugfs_create_file(name, (void *)audio);
 
@@ -321,6 +322,7 @@ static int audio_open(struct inode *inode, struct file *file)
 	pr_debug("%s:apedec success mode[%d]session[%d]\n", __func__,
 						audio->feedback,
 						audio->ac->session);
+#endif
 	return rc;
 fail:
 	q6asm_audio_client_free(audio->ac);
