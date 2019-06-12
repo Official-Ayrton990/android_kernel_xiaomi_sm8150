@@ -36,6 +36,18 @@
 		qca,bt-vdd-pa-current-level = <0>; /* LPM/PFM */
 		qca,bt-vdd-ldo-current-level = <0>; /* LPM/PFM */
 	};
+
+	extcon_usb1: extcon_usb1 {
+		compatible = "linux,extcon-usb-gpio";
+		vbus-gpio = <&pm8150_gpios 10 GPIO_ACTIVE_HIGH>;
+		id-gpio = <&tlmm 101 GPIO_ACTIVE_HIGH>;
+		vbus-out-gpio = <&pm8150_gpios 9 GPIO_ACTIVE_HIGH>;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&usb2_vbus_det_default
+			     &usb2_id_det_default
+			     &usb2_vbus_boost_default>;
+	};
 };
 
 &qupv3_se13_4uart {
@@ -80,6 +92,15 @@
 
 		pinctrl-names = "default";
 		pinctrl-0 = <&otg_vbus_boost_default>;
+	};
+
+	qcom,qbt1000 {
+		compatible = "qcom,qbt1000";
+		clock-names = "core", "iface";
+		clock-frequency = <25000000>;
+/*		qcom,ipc-gpio = <&tlmm 118 0>; */
+		qcom,finger-detect-gpio = <&pm8150_gpios 1 0>;
+		status = "disabled";
 	};
 
 	wdog: qcom,wdt@17c10000 {
@@ -213,6 +234,34 @@
 	status = "ok";
 };
 
+&sdhc_2 {
+	vdd-supply = <&pm8150l_l9>;
+	qcom,vdd-voltage-level = <2950000 2960000>;
+	qcom,vdd-current-level = <200 800000>;
+
+	vdd-io-supply = <&pm8150l_l6>;
+	qcom,vdd-io-voltage-level = <1808000 2960000>;
+	qcom,vdd-io-current-level = <200 22000>;
+
+	pinctrl-names = "active", "sleep";
+	pinctrl-0 = <&sdc2_clk_on  &sdc2_cmd_on &sdc2_data_on &storage_cd>;
+	pinctrl-1 = <&sdc2_clk_off &sdc2_cmd_off &sdc2_data_off &storage_cd>;
+
+	cd-gpios = <&tlmm 96 GPIO_ACTIVE_LOW>;
+
+	status = "disabled";
+};
+
+&pm8150l_wled {
+	qcom,string-cfg= <7>;
+	qcom,leds-per-string = <6>;
+	status = "ok";
+};
+
+&pm8150l_lcdb {
+	status = "ok";
+};
+
 &pm8150b_charger {
 	io-channels = <&pm8150b_vadc ADC_USB_IN_V_16>,
 		      <&pm8150b_vadc ADC_USB_IN_I>,
@@ -254,4 +303,8 @@
 
 &usb_qmp_phy {
 	status = "ok";
+
+&usb1 {
+	extcon = <&extcon_usb1>;
+        status = "ok";
 };
