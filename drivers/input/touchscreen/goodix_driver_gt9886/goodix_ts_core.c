@@ -30,7 +30,6 @@
 #ifdef CONFIG_DRM
 #include <linux/msm_drm_notify.h>
 #include <linux/notifier.h>
-#include <linux/fb.h>
 #endif
 #include <linux/uaccess.h>
 #include <linux/proc_fs.h>
@@ -807,7 +806,7 @@ int goodix_ts_unregister_notifier(struct notifier_block *nb)
 EXPORT_SYMBOL(goodix_ts_unregister_notifier);
 
 /**
- * fb_notifier_call_chain - notify clients of fb_events
+ * msm_drm_notifier_call_chain - notify clients of msm_drm_notifier
  * see enum ts_notify_event in goodix_ts_core.h
  */
 int goodix_ts_blocking_notify(enum ts_notify_event evt, void *v)
@@ -1854,23 +1853,23 @@ static int goodix_bl_state_chg_callback(struct notifier_block *nb, unsigned long
 
 #ifdef CONFIG_DRM
 /**
- * goodix_ts_fb_notifier_callback - Framebuffer notifier callback
- * Called by kernel during framebuffer blanck/unblank phrase
+ * goodix_ts_msm_drm_notifier_callback - msm drm notifier callback
+ * Called by kernel during drm blanck/unblank phrase
  */
-int goodix_ts_fb_notifier_callback(struct notifier_block *self,
+int goodix_ts_msm_drm_notifier_callback(struct notifier_block *self,
 	unsigned long event, void *data)
 {
 	struct goodix_ts_core *core_data =
-		container_of(self, struct goodix_ts_core, fb_notifier);
-	struct msm_drm_notifier *fb_event = data;
+		container_of(self, struct goodix_ts_core, msm_drm_notifier);
+	struct msm_drm_notifier *msm_drm_event = data;
 	int blank;
 
-	if (fb_event && fb_event->data && core_data) {
-		blank = *(int *)(fb_event->data);
+	if (msm_drm_event && msm_drm_event->data && core_data) {
+		blank = *(int *)(msm_drm_event->data);
 		flush_workqueue(core_data->event_wq);
 		if (event == MSM_DRM_EVENT_BLANK && (blank == MSM_DRM_BLANK_POWERDOWN ||
 			blank == MSM_DRM_BLANK_LP1 || blank == MSM_DRM_BLANK_LP2)) {
-			ts_info("touchpanel suspend .....blank=%d\n",blank);
+			ts_info("touchpanel suspend .....blank=%d\n", blank);
 			ts_info("touchpanel suspend .....suspend_stat=%d\n", atomic_read(&core_data->suspend_stat));
 			if (atomic_read(&core_data->suspend_stat))
 				return 0;
@@ -2744,7 +2743,7 @@ static int goodix_ts_remove(struct platform_device *pdev)
 {
 	struct goodix_ts_core *core_data = platform_get_drvdata(pdev);
 #ifdef CONFIG_DRM
-	msm_drm_unregister_client(&core_data->fb_notifier);
+	msm_drm_unregister_client(&core_data->msm_drm_notifier);
 #endif
 	//wake_lock_destroy(&core_data->tp_wakelock);
 	power_supply_unreg_notifier(&core_data->power_supply_notifier);
