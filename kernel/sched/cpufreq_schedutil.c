@@ -1005,30 +1005,7 @@ static int sugov_init(struct cpufreq_policy *policy)
 				20000;	
 	tunables->hispeed_load = DEFAULT_HISPEED_LOAD;
 	tunables->hispeed_freq = 0;
-	tunables->iowait_boost_enable = false;
-
-	/**
-	*
-	* This values are selected to be used on sm8150 common devices, but tunned consider thermal throttling on the Xiaomi Cepheus
-	*
-	**/
-	
-	switch (policy->cpu) {
-	default:
-	case 0:
-        tunables->up_rate_limit_us = DEFAULT_CPU0_UP_RATE_LIMIT_US;
-        tunables->down_rate_limit_us = DEFAULT_CPU0_DOWN_RATE_LIMIT_US;
-	break;
-	case 4:
-        tunables->up_rate_limit_us = DEFAULT_CPU4_UP_RATE_LIMIT_US;
-        tunables->down_rate_limit_us = DEFAULT_CPU4_DOWN_RATE_LIMIT_US;
-	break;
-	case 7:
-        tunables->up_rate_limit_us = DEFAULT_CPU7_UP_RATE_LIMIT_US;
-        tunables->down_rate_limit_us = DEFAULT_CPU7_DOWN_RATE_LIMIT_US;
-	break;
-	}
-
+	tunables->iowait_boost_enable = true;
 	policy->governor_data = sg_policy;
 	sg_policy->tunables = tunables;
 	stale_ns = sched_ravg_window + (sched_ravg_window >> 3);
