@@ -727,8 +727,7 @@ static ssize_t store_##file_name					\
 	int ret, temp;							\
 	struct cpufreq_policy new_policy;				\
 									\
-	if (&policy->object == &policy->min &&				\
-	    task_is_booster(current))					\
+	if (&policy->object == &policy->min)				\
 		return count;						\
 									\
 	memcpy(&new_policy, policy, sizeof(*policy));			\
