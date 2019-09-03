@@ -62,6 +62,9 @@ static const struct of_device_id dsi_display_dt_match[] = {
 
 struct dsi_display *primary_display;
 
+static unsigned int timing_override;
+module_param(timing_override, uint, 0444);
+
 static void dsi_display_mask_ctrl_error_interrupts(struct dsi_display *display,
 			u32 mask, bool enable)
 {
@@ -6420,7 +6423,7 @@ int dsi_display_get_modes(struct dsi_display *display,
 	struct dsi_dfps_capabilities dfps_caps;
 	struct dsi_host_common_cfg *host = &display->panel->host_config;
 	bool is_split_link, is_cmd_mode;
-	u32 num_dfps_rates, timing_mode_count, display_mode_count;
+	u32 num_dfps_rates, panel_mode_count, display_mode_count;
 	u32 sublinks_count, mode_idx, array_idx = 0;
 	struct dsi_dyn_clk_caps *dyn_clk_caps;
 	int i, start, end, rc = -EINVAL;
@@ -6457,19 +6460,27 @@ int dsi_display_get_modes(struct dsi_display *display,
 
 	num_dfps_rates = !dfps_caps.dfps_support ? 1 : dfps_caps.dfps_list_len;
 
-	timing_mode_count = display->panel->num_timing_nodes;
+	panel_mode_count = display->panel->num_timing_nodes;
+	if (timing_override >= panel_mode_count) {
+		pr_warn("[%s] ignoring invalid cmdline timing override %d\n",
+			display->name, timing_override);
+		timing_override = 0;
+	}
 
-	for (mode_idx = 0; mode_idx < timing_mode_count; mode_idx++) {
-		struct dsi_display_mode display_mode;
+	for (mode_idx = 0; mode_idx < panel_mode_count; mode_idx++) {
+		struct dsi_display_mode panel_mode;
 		int topology_override = NO_OVERRIDE;
 
 		if (display->cmdline_timing == mode_idx)
 			topology_override = display->cmdline_topology;
 
-		memset(&display_mode, 0, sizeof(display_mode));
+		if (mode_idx != timing_override)
+			continue;
+
+		memset(&panel_mode, 0, sizeof(panel_mode));
 
 		rc = dsi_panel_get_mode(display->panel, mode_idx,
-						&display_mode,
+						&panel_mode,
 						topology_override);
 		if (rc) {
 			pr_err("[%s] failed to get mode idx %d from panel\n",
@@ -6477,32 +6488,32 @@ int dsi_display_get_modes(struct dsi_display *display,
 			goto error;
 		}
 
-		is_cmd_mode = (display_mode.panel_mode == DSI_OP_CMD_MODE);
+		/*is_cmd_mode = (display_mode.panel_mode == DSI_OP_CMD_MODE);*/
 
 		is_split_link = host->split_link.split_link_enabled;
 		sublinks_count = host->split_link.num_sublinks;
 		if (is_split_link && sublinks_count > 1) {
-			display_mode.timing.h_active *= sublinks_count;
-			display_mode.timing.h_front_porch *= sublinks_count;
-			display_mode.timing.h_sync_width *= sublinks_count;
-			display_mode.timing.h_back_porch *= sublinks_count;
-			display_mode.timing.h_skew *= sublinks_count;
-			display_mode.pixel_clk_khz *= sublinks_count;
+			panel_mode.timing.h_active *= sublinks_count;
+			panel_mode.timing.h_front_porch *= sublinks_count;
+			panel_mode.timing.h_sync_width *= sublinks_count;
+			panel_mode.timing.h_back_porch *= sublinks_count;
+			panel_mode.timing.h_skew *= sublinks_count;
+			panel_mode.pixel_clk_khz *= sublinks_count;
 		} else {
-			display_mode.timing.h_active *= display->ctrl_count;
-			display_mode.timing.h_front_porch *=
+			panel_mode.timing.h_active *= display->ctrl_count;
+			panel_mode.timing.h_front_porch *=
 						display->ctrl_count;
-			display_mode.timing.h_sync_width *=
+			panel_mode.timing.h_sync_width *=
 						display->ctrl_count;
-			display_mode.timing.h_back_porch *=
+			panel_mode.timing.h_back_porch *=
 						display->ctrl_count;
-			display_mode.timing.h_skew *= display->ctrl_count;
-			display_mode.pixel_clk_khz *= display->ctrl_count;
+			panel_mode.timing.h_skew *= display->ctrl_count;
+			panel_mode.pixel_clk_khz *= display->ctrl_count;
 		}
 
 		/* pixel overlap is not supported for single dsi panels */
 		if (display->ctrl_count == 1)
-			display_mode.priv_info->overlap_pixels = 0;
+			panel_mode.priv_info->overlap_pixels = 0;
 
 		start = array_idx;
 
@@ -6517,7 +6528,7 @@ int dsi_display_get_modes(struct dsi_display *display,
 				goto error;
 			}
 
-			memcpy(sub_mode, &display_mode, sizeof(display_mode));
+			memcpy(sub_mode, &panel_mode, sizeof(panel_mode));
 			array_idx++;
 
 			if (!dfps_caps.dfps_support || is_cmd_mode)
