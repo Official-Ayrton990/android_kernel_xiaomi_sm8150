@@ -24,10 +24,6 @@
 #include "dsi_ctrl_hw.h"
 #include "dsi_parser.h"
 
-#ifdef CONFIG_KLAPSE
-#include <linux/klapse.h>
-#endif
-
 /**
  * topology is currently defined by a set of following 3 values:
  * 1. num of layer mixers
@@ -1249,10 +1245,6 @@ static int dsi_panel_parse_misc_host_config(struct dsi_host_common_cfg *host,
 		pr_debug("[%s] t_clk_post = %d\n", name, val);
 	}
 	
-#ifdef CONFIG_KLAPSE
-	set_rgb_slider(bl_lvl);
-#endif
-
 	val = 0;
 	rc = utils->read_u32(utils->data, "qcom,mdss-dsi-t-clk-pre", &val);
 	if (!rc) {
