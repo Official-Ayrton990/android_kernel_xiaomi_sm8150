@@ -129,6 +129,9 @@ struct dsi_backlight_config {
 
 	int en_gpio;
 	bool dcs_type_ss;
+
+	bool bl_remap_flag;
+
 	/* PWM params */
 	struct pwm_device *pwm_bl;
 	bool pwm_enabled;
