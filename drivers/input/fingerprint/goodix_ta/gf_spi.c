@@ -44,7 +44,7 @@
 #include <linux/cpufreq.h>
 #include <linux/pm_wakeup.h>
 #include <drm/drm_bridge.h>
-#include <drm/drm_notifier.h>
+#include <linux/msm_drm_notify.h>
 
 #include "gf_spi.h"
 
@@ -715,11 +715,11 @@ static int goodix_fb_state_chg_callback(struct notifier_block *nb,
 					unsigned long val, void *data)
 {
 	struct gf_dev *gf_dev;
-	struct fb_event *evdata = data;
+	struct msm_drm_notifier *evdata = data;
 	unsigned int blank;
 	char temp[4] = { 0x0 };
 
-	if (val != DRM_EVENT_BLANK) {
+	if (val != MSM_DRM_EVENT_BLANK) {
 		return 0;
 	}
 
@@ -727,11 +727,11 @@ static int goodix_fb_state_chg_callback(struct notifier_block *nb,
 		 __func__, (int)val);
 	gf_dev = container_of(nb, struct gf_dev, notifier);
 
-	if (evdata && evdata->data && val == DRM_EVENT_BLANK && gf_dev) {
+	if (evdata && evdata->data && val == MSM_DRM_EVENT_BLANK && gf_dev) {
 		blank = *(int *)(evdata->data);
 
 		switch (blank) {
-			case DRM_BLANK_POWERDOWN:
+			case MSM_DRM_BLANK_POWERDOWN:
 				if (gf_dev->device_available == 1) {
 #if defined(GF_NETLINK_ENABLE)
 					temp[0] = GF_NET_EVENT_FB_BLACK;
@@ -747,7 +747,7 @@ static int goodix_fb_state_chg_callback(struct notifier_block *nb,
 
 				break;
 
-			case DRM_BLANK_UNBLANK:
+			case MSM_DRM_BLANK_UNBLANK:
 				if (gf_dev->device_available == 1) {
 #if defined(GF_NETLINK_ENABLE)
 					temp[0] = GF_NET_EVENT_FB_UNBLACK;
@@ -869,7 +869,7 @@ static int gf_probe(struct platform_device *pdev)
 	spi_clock_set(gf_dev, 1000000);
 #endif
 	gf_dev->notifier = goodix_noti_block;
-	drm_register_client(&gf_dev->notifier);
+	msm_drm_register_client(&gf_dev->notifier);
 	gf_dev->irq = gf_irq_num(gf_dev);
 	wakeup_source_init(&fp_wakelock, "fp_wakelock");
 	pr_debug("version V%d.%d.%02d\n", VER_MAJOR, VER_MINOR, PATCH_LEVEL);
@@ -932,7 +932,7 @@ static int gf_remove(struct platform_device *pdev)
 		gf_cleanup(gf_dev);
 	}
 
-	drm_unregister_client(&gf_dev->notifier);
+	msm_drm_unregister_client(&gf_dev->notifier);
 	mutex_unlock(&device_list_lock);
 	return 0;
 }
