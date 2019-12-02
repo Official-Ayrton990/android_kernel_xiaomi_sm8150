@@ -2620,13 +2620,26 @@ int smblib_set_prop_batt_status(struct smb_charger *chg,
 #define ADAPTER_ZIMI_CAR_POWER    0x0b
 
 #ifdef CONFIG_THERMAL
-static void smblib_dc_therm_charging(struct smb_charger *chg,
+static int smblib_dc_therm_charging(struct smb_charger *chg,
 					int temp_level)
 {
 	int thermal_icl_ua = 0;
+	int rc;
 	union power_supply_propval pval = {0, };
 	union power_supply_propval val = {0, };
 
+	if (!chg->wls_psy) {
+		chg->wls_psy = power_supply_get_by_name("wireless");
+		if (!chg->wls_psy)
+			return -ENODEV;
+	}
+	rc = power_supply_get_property(chg->wls_psy,
+				POWER_SUPPLY_PROP_TX_ADAPTER,
+				&pval);
+
+	rc = power_supply_get_property(chg->wls_psy,
+				POWER_SUPPLY_PROP_WIRELESS_VERSION,
+				&val);
 		switch (pval.intval) {
 		case ADAPTER_XIAOMI_QC3:
 		case ADAPTER_ZIMI_CAR_POWER:
@@ -2663,6 +2676,8 @@ static void smblib_dc_therm_charging(struct smb_charger *chg,
 			break;
 	}
 	vote(chg->dc_icl_votable, THERMAL_DAEMON_VOTER, true, thermal_icl_ua);
+
+	return rc;
 }
 #endif
 int smblib_set_prop_dc_temp_level(struct smb_charger *chg,
