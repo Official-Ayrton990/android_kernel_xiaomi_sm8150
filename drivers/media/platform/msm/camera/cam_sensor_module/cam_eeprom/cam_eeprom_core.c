@@ -1063,7 +1063,7 @@ int32_t cam_eeprom_driver_cmd(struct cam_eeprom_ctrl_t *e_ctrl, void *arg)
 	case CAM_CONFIG_DEV:
 		rc = cam_eeprom_pkt_parse(e_ctrl, arg);
 		if (rc) {
-			CAM_ERR(CAM_EEPROM, "Failed in eeprom pkt Parsing");
+			CAM_ERR(CAM_EEPROM, "Failed in eeprom pkt Parsing, rc %d", rc);
 			goto release_mutex;
 		}
 		break;
