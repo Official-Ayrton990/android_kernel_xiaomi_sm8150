@@ -46,6 +46,7 @@
 #include <linux/irq.h>
 #include <linux/irqdesc.h>
 #include <linux/cpumask.h>
+#include <linux/msm_drm_notify.h>
 
 #include <linux/uaccess.h>
 #include <linux/export.h>
@@ -65,6 +66,11 @@ struct pm_qos_object {
 static DEFINE_SPINLOCK(pm_qos_lock);
 
 static struct pm_qos_object null_pm_qos;
+
+struct notifier_block msm_drm_notif;
+static int msm_drm_notifier_qos(struct notifier_block *nb, unsigned long action,
+			  void *data);
+static atomic_t screen_on = ATOMIC_INIT(0);
 
 static BLOCKING_NOTIFIER_HEAD(cpu_dma_lat_notifier);
 static struct pm_qos_constraints cpu_dma_constraints = {
@@ -893,12 +899,39 @@ static ssize_t pm_qos_power_write(struct file *filp, const char __user *buf,
 			return ret;
 	}
 
+	if (!atomic_read(&screen_on)) {
+		pr_info("screen off %s: %i", current->comm, value);
+		//value = 0;
+	} else {
+		pr_info("screen on %s: %i", current->comm, value);
+	}
 	req = filp->private_data;
 	pm_qos_update_request(req, value);
 
 	return count;
 }
 
+static int msm_drm_notifier_qos(struct notifier_block *nb, unsigned long action,
+			  void *data)
+{
+	struct msm_drm_notifier *evdata = data;
+	int *blank = evdata->data;
+
+	/* Parse framebuffer blank events as soon as they occur */
+	if (action != MSM_DRM_EARLY_EVENT_BLANK)
+		return NOTIFY_OK;
+
+	/* Boost when the screen turns on and unboost when it turns off */
+	if (*blank == MSM_DRM_BLANK_UNBLANK) {
+		atomic_set(&screen_on, 0);
+		pr_info("screen off");
+	} else if (*blank == MSM_DRM_BLANK_POWERDOWN) {
+		atomic_set(&screen_on, 1);
+		pr_info("screen on");
+	}
+
+	return NOTIFY_OK;
+}
 
 static int __init pm_qos_power_init(void)
 {
@@ -919,6 +952,13 @@ static int __init pm_qos_power_init(void)
 			       pm_qos_array[i]->name);
 			return ret;
 		}
+	}
+	msm_drm_notif.notifier_call = msm_drm_notifier_qos;
+	msm_drm_notif.priority = INT_MAX;
+	ret = msm_drm_register_client(&msm_drm_notif);
+	if (ret) {
+		pr_err("Failed to register msm_drm notifier, err: %d\n", ret);
+		return ret;
 	}
 
 	return ret;
