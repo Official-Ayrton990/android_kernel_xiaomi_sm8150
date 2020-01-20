@@ -11,7 +11,7 @@
  */
 #ifndef MSM_CIRRUS_PLAYBACK_H
 #define MSM_CIRRUS_PLAYBACK_H
-#define DEBUG
+//#define DEBUG
 #include <linux/slab.h>
 #include <sound/soc.h>
 #include <dsp/apr_audio-v2.h>
