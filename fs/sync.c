@@ -18,6 +18,14 @@
 #include <linux/quotaops.h>
 #include <linux/backing-dev.h>
 #include "internal.h"
+#include <linux/module.h>
+
+#ifdef CONFIG_DYNAMIC_FSYNC
+#include <linux/dyn_sync_cntrl.h>
+#endif
+
+bool fsync_enabled = true;
+module_param(fsync_enabled, bool, 0755);
 
 bool fsync_enabled = true;
 module_param(fsync_enabled, bool, 0644);
@@ -99,6 +107,21 @@ static void fdatawait_one_bdev(struct block_device *bdev, void *arg)
 	filemap_fdatawait_keep_errors(bdev->bd_inode->i_mapping);
 }
 
+#ifdef CONFIG_DYNAMIC_FSYNC
+/*
+ * Sync all the data for all the filesystems (called by sys_sync() and
+ * emergency sync)
+ */
+void sync_filesystems(int wait)
+{
+	iterate_supers(sync_inodes_one_sb, NULL);
+	iterate_supers(sync_fs_one_sb, &wait);
+	iterate_supers(sync_fs_one_sb, &wait);
+	iterate_bdevs(fdatawrite_one_bdev, NULL);
+	iterate_bdevs(fdatawait_one_bdev, NULL);
+}
+#endif
+
 /*
  * Sync everything. We start by waking flusher threads so that most of
  * writeback runs on all devices in parallel. Then we sync all inodes reliably
@@ -162,11 +185,15 @@ SYSCALL_DEFINE1(syncfs, int, fd)
 	struct super_block *sb;
 	int ret;
 
+	#ifdef CONFIG_DYNAMIC_FSYNC
+	if (likely(dyn_fsync_active && suspend_active))
+		return 0;
+	#endif
 
 	if (!fsync_enabled)
 		return 0;
 
-	f = fdget(fd)
+	f = fdget(fd);
 	if (!f.file)
 		return -EBADF;
 	sb = f.file->f_path.dentry->d_sb;
@@ -193,12 +220,14 @@ SYSCALL_DEFINE1(syncfs, int, fd)
 int vfs_fsync_range(struct file *file, loff_t start, loff_t end, int datasync)
 {
 
-	struct inode *inode;
+#ifdef CONFIG_DYNAMIC_FSYNC
+	if (likely(dyn_fsync_active && suspend_active))
+		return 0;
+#endif
 
 	if (!fsync_enabled)
 		return 0;
 
- 	inode = file->f_mapping->host;
 	if (!file->f_op->fsync)
 		return -EINVAL;
 
@@ -231,6 +260,11 @@ static int do_fsync(unsigned int fd, int datasync)
 {
 	struct fd f;
 	int ret = -EBADF;
+
+#ifdef CONFIG_DYNAMIC_FSYNC
+	if (likely(dyn_fsync_active && suspend_active))
+		return 0;
+#endif
 
 	if (!fsync_enabled)
 		return 0;
@@ -309,6 +343,11 @@ SYSCALL_DEFINE4(sync_file_range, int, fd, loff_t, offset, loff_t, nbytes,
 	struct address_space *mapping;
 	loff_t endbyte;			/* inclusive */
 	umode_t i_mode;
+
+#ifdef CONFIG_DYNAMIC_FSYNC
+	if (likely(dyn_fsync_active && suspend_active))
+		return 0;
+#endif
 
 	if (!fsync_enabled)
 		return 0;
