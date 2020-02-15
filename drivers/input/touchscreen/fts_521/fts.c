@@ -2628,42 +2628,10 @@ static ssize_t fts_fod_status_store(struct device *dev,
 				     const char *buf, size_t count)
 {
 	struct fts_ts_info *info = dev_get_drvdata(dev);
-	int res = 0;
-	u8 gesture_cmd[6] = {0xA2, 0x03, 0x20, 0x00, 0x00, 0x01};
-	u8 single_only_cmd[4] = {0xC0, 0x02, 0x00, 0x00};
-	u8 single_double_cmd[4] = {0xC0, 0x02, 0x01, 0x1E};
 
 	logError(1, " %s %s buf:%c,count:%zu\n", tag, __func__, buf[0], count);
 	sscanf(buf, "%u", &info->fod_status);
-
-	mutex_lock(&info->fod_mutex);
-	if (info->fod_status) {
-		if (info->fod_status_set) {
-			logError(1, " %s %s fod status has set\n", tag, __func__);
-		} else {
-			res = fts_write_dma_safe(gesture_cmd, ARRAY_SIZE(gesture_cmd));
-			if (res < OK)
-					logError(1, "%s %s: enter gesture and longpress failed! ERROR %08X recovery in senseOff...\n",
-						 tag, __func__, res);
-
-			if (info->sensor_sleep) {
-				logError(1, " %s %s set fod cmd in sensor off status\n", tag, __func__);
-				res = setScanMode(SCAN_MODE_LOW_POWER, 0);
-				if (info->gesture_enabled == 1) {
-					res = fts_write_dma_safe(single_double_cmd, ARRAY_SIZE(single_double_cmd));
-					if (res < OK)
-							logError(1, "%s %s: set single and double tap delay time failed! ERROR %08X\n", tag, __func__, res);
-				} else {
-					res = fts_write_dma_safe(single_only_cmd, ARRAY_SIZE(single_only_cmd));
-					if (res < OK)
-							logError(1, "%s %s: set single only delay time failed! ERROR %08X\n", tag, __func__, res);
-				}
-			}
-			fts_enableInterrupt();
-			info->fod_status_set = true;
-		}
-	}
-	mutex_unlock(&info->fod_mutex);
+	queue_work(info->event_wq, &info->mode_handler_work);
 	logError(1, " %s %s end\n", tag, __func__);
 
 	return count;
@@ -5509,6 +5477,16 @@ int fts_palm_sensor_write(int value)
 	return ret;
 }
 #endif
+
+static void fts_mode_handler_work(struct work_struct *work)
+{
+	struct fts_ts_info *info;
+
+	info = container_of(work, struct fts_ts_info, mode_handler_work);
+
+	fts_mode_handler(info, 0);
+}
+
 /**
  * Resume work function which perform a system reset, clean all the touches from the linux input system and prepare the ground for enabling the sensing
  */
@@ -6741,6 +6719,7 @@ static int fts_probe(struct spi_device *client)
 	INIT_WORK(&info->resume_work, fts_resume_work);
 	INIT_WORK(&info->suspend_work, fts_suspend_work);
 	INIT_WORK(&info->sleep_work, fts_ts_sleep_work);
+	INIT_WORK(&info->mode_handler_work, fts_mode_handler_work);
 	init_completion(&info->tp_reset_completion);
 #ifdef CONFIG_TOUCHSCREEN_XIAOMI_TOUCHFEATURE
 	init_waitqueue_head(&info->wait_queue);
