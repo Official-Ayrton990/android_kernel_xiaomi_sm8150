@@ -717,11 +717,6 @@ int dsi_panel_set_fod_hbm_backlight(struct dsi_panel *panel, bool status) {
 	panel->fod_hbm_status = status;
 
 	if (status) {
-		rc = dsi_panel_tx_cmd_set(panel, DSI_CMD_SET_DISP_DIMMINGOFF);
-		if (rc)
-			pr_err("[%s] failed to send DSI_CMD_SET_DISP_DIMMINGOFF cmd, rc=%d\n",
-					panel->name, rc);
-
 		rc = dsi_panel_tx_cmd_set(panel, DSI_CMD_SET_DISP_HBM_FOD_ON);
 		if (rc)
 			pr_err("[%s] failed to send DSI_CMD_SET_DISP_HBM_FOD_ON cmd, rc=%d\n",
@@ -1807,7 +1802,6 @@ const char *cmd_set_prop_map[DSI_CMD_SET_MAX] = {
 	"qcom,mdss-dsi-qsync-off-commands",
 	"qcom,mdss-dsi-doze-hbm-command",
 	"qcom,mdss-dsi-doze-lbm-command",
-	"qcom,mdss-dsi-dispparam-dimmingoff-command",
 	"qcom,mdss-dsi-dispparam-hbm-fod-on-command",
 	"qcom,mdss-dsi-dispparam-hbm-fod-off-command",
 };
@@ -1838,7 +1832,6 @@ const char *cmd_set_state_map[DSI_CMD_SET_MAX] = {
 	"qcom,mdss-dsi-qsync-off-commands-state",
 	"qcom,mdss-dsi-doze-hbm-command-state",
 	"qcom,mdss-dsi-doze-lbm-command-state",
-	"qcom,mdss-dsi-dispparam-dimmingoff-command-state",
 	"qcom,mdss-dsi-dispparam-hbm-fod-on-command-state",
 	"qcom,mdss-dsi-dispparam-hbm-fod-off-command-state",
 };
