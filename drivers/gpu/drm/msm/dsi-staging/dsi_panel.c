@@ -622,9 +622,6 @@ static int dsi_panel_update_backlight(struct dsi_panel *panel,
 		return -EINVAL;
 	}
 
-	if (panel->fod_hbm_status)
-		return 0;
-
 	dsi = &panel->mipi_device;
 
 	if (panel->bl_config.dcs_type_ss)
