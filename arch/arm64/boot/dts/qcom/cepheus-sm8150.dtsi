@@ -376,10 +376,6 @@ And public attribution of xiaomi platforms(like F1 and so and)
 	qcom,panel-supply-entries = <&dsi_amoled_panel_pwr_external_supply>;
 };
 
-&pm8150l_lcdb {
-	status = "ok";
-};
-
 &pm8150b_vadc {
 	vph_pwr {
 		reg = <ADC_VPH_PWR>;
