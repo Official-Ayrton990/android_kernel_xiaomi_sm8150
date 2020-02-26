@@ -17,6 +17,10 @@
 #include "sm8150-sde-display.dtsi"
 #include "sm8150-thermal-overlay.dtsi"
 
+&qupv3_se12_2uart {
+	status = "ok";
+};
+
 &vendor {
 	bluetooth: bt_wcn3990 {
 		compatible = "qca,wcn3990";
@@ -35,6 +39,14 @@
 };
 
 &qupv3_se13_4uart {
+	status = "ok";
+};
+
+&qupv3_se3_spi {
+	status = "ok";
+};
+
+&qupv3_se4_i2c {
 	status = "ok";
 };
 
@@ -208,6 +220,10 @@
 	io-channel-names = "usb_in_voltage",
 			   "usb_in_current",
 			   "chg_temp";
+};
+
+&wil6210 {
+	status = "ok";
 };
 
 &mhi_0 {
