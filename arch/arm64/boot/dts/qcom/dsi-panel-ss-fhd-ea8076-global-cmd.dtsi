@@ -278,7 +278,7 @@
 					39 00 00 00 00 00 03 F0 5A 5A /* esd */
 					39 00 00 00 00 00 03 FC 5A 5A
 					39 00 00 00 00 00 02 B0 23 //osc
-					39 00 00 00 00 00 02 D1 0F
+					39 00 00 00 00 00 02 D1 11
 					39 00 00 00 00 00 0C E9 11 55 A6 75 A3 B9 A1 4A 00 1A B8
 					39 00 00 00 00 00 07 E1 00 00 02 02 42 02
 					39 00 00 00 00 00 07 E2 00 00 00 00 00 00
@@ -389,6 +389,18 @@
 					39 00 00 00 00 00 02 B7 91
 					39 01 00 00 01 00 03 F0 A5 A5];
 				qcom,mdss-dsi-dispparam-elvss-dimming-off-command-state = "dsi_lp_mode";
+				qcom,mdss-dsi-h-sync-pulse = <0>;
+
+				qcom,mdss-dsi-dispparam-hbm-fod-off-command = [
+					15 01 00 00 10 00 02 53 20];
+				qcom,mdss-dsi-dispparam-hbm-fod-off-command-state = "dsi_hs_mode";
+				qcom,mdss-dsi-dispparam-hbm-fod-on-command = [
+					39 00 00 00 00 00 03 F0 5A 5A
+					15 00 00 00 00 00 02 B0 03
+					15 00 00 00 00 00 02 B7 C9
+					39 00 00 00 00 00 03 F0 A5 A5
+					15 01 00 00 10 00 02 53 E0];
+				qcom,mdss-dsi-dispparam-hbm-fod-on-command-state = "dsi_hs_mode";
 			};
 		};
 	};
