@@ -4308,6 +4308,18 @@ static void _sde_plane_atomic_disable(struct drm_plane *plane,
 				SDE_SSPP_RECT_SOLO, SDE_SSPP_MULTIRECT_NONE);
 }
 
+int sde_plane_is_fod_layer(const struct drm_plane_state *drm_state)
+{
+	struct sde_plane_state *pstate;
+
+	if (!drm_state)
+		return 0;
+
+	pstate = to_sde_plane_state(drm_state);
+
+	return sde_plane_get_property(pstate, PLANE_PROP_FOD);
+}
+
 static void sde_plane_atomic_update(struct drm_plane *plane,
 				struct drm_plane_state *old_state)
 {
@@ -4866,8 +4878,8 @@ static int sde_plane_atomic_set_property(struct drm_plane *plane,
 		idx = msm_property_index(&psde->property_info,
 				property);
 		if (idx == PLANE_PROP_ZPOS) {
-			if (val & 0x40000000u) {
-				val &= ~0x40000000u;
+			if (val & 0x20000000u) {
+				val &= ~0x20000000u;
 				fod_val = 1;
 			}
 
