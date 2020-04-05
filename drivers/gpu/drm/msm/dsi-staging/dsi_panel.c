@@ -689,6 +689,9 @@ error:
 int dsi_panel_update_doze(struct dsi_panel *panel) {
 	int rc = 0;
 
+	if (panel->fod_hbm_enabled)
+		return 0;
+
 	if (panel->doze_enabled && panel->doze_mode == DSI_DOZE_HBM) {
 		rc = dsi_panel_tx_cmd_set(panel, DSI_CMD_SET_DOZE_HBM);
 		if (rc)
@@ -728,6 +731,35 @@ int dsi_panel_set_doze_mode(struct dsi_panel *panel, enum dsi_doze_mode_type mod
 		return 0;
 
 	return dsi_panel_update_doze(panel);
+}
+
+int dsi_panel_update_fod_hbm(struct dsi_panel *panel) {
+	int rc = 0;
+
+	if (panel->fod_hbm_enabled) {
+		rc = dsi_panel_tx_cmd_set(panel, DSI_CMD_SET_DISP_HBM_FOD_ON);
+		if (rc)
+			pr_err("[%s] failed to send DSI_CMD_SET_DISP_HBM_FOD_ON cmd, rc=%d\n",
+					panel->name, rc);
+	} else if (!panel->fod_hbm_enabled && panel->doze_enabled) {
+		dsi_panel_update_doze(panel);
+	} else if (!panel->fod_hbm_enabled) {
+		rc = dsi_panel_tx_cmd_set(panel, DSI_CMD_SET_DISP_HBM_FOD_OFF);
+		if (rc)
+			pr_err("[%s] failed to send DSI_CMD_SET_DISP_HBM_FOD_OFF cmd, rc=%d\n",
+					panel->name, rc);
+	}
+
+	return rc;
+}
+
+int dsi_panel_set_fod_hbm_status(struct dsi_panel *panel, bool status) {
+	if (panel->fod_hbm_enabled == status)
+		return 0;
+
+	panel->fod_hbm_enabled = status;
+
+	return dsi_panel_update_fod_hbm(panel);
 }
 
 int dsi_panel_set_backlight(struct dsi_panel *panel, u32 bl_lvl)
@@ -1797,6 +1829,8 @@ const char *cmd_set_prop_map[DSI_CMD_SET_MAX] = {
 	"qcom,mdss-dsi-qsync-off-commands",
 	"qcom,mdss-dsi-doze-hbm-command",
 	"qcom,mdss-dsi-doze-lbm-command",
+	"qcom,mdss-dsi-dispparam-hbm-fod-on-command",
+	"qcom,mdss-dsi-dispparam-hbm-fod-off-command",
 };
 
 const char *cmd_set_state_map[DSI_CMD_SET_MAX] = {
@@ -1825,6 +1859,8 @@ const char *cmd_set_state_map[DSI_CMD_SET_MAX] = {
 	"qcom,mdss-dsi-qsync-off-commands-state",
 	"qcom,mdss-dsi-doze-hbm-command-state",
 	"qcom,mdss-dsi-doze-lbm-command-state",
+	"qcom,mdss-dsi-dispparam-hbm-fod-on-command-state",
+	"qcom,mdss-dsi-dispparam-hbm-fod-off-command-state",
 };
 
 static int dsi_panel_get_cmd_pkt_count(const char *data, u32 length, u32 *cnt)
@@ -3425,6 +3461,7 @@ struct dsi_panel *dsi_panel_get(struct device *parent,
 
 	panel->doze_mode = DSI_DOZE_LPM;
 	panel->doze_enabled = false;
+	panel->fod_hbm_enabled = false;
 
 	panel->power_mode = SDE_MODE_DPMS_OFF;
 	drm_panel_init(&panel->drm_panel);
@@ -4404,6 +4441,7 @@ int dsi_panel_disable(struct dsi_panel *panel)
 	panel->panel_initialized = false;
 	panel->power_mode = SDE_MODE_DPMS_OFF;
 	panel->doze_enabled = false;
+	panel->fod_hbm_enabled = false;
 
 	mutex_unlock(&panel->panel_lock);
 	return rc;
