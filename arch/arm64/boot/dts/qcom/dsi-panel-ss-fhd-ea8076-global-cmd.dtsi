@@ -63,7 +63,8 @@
 		/* IRQF_ONESHOT | IRQF_TRIGGER_FALLING */
 		/* trig-flags: falling-0x0002 rasing-0x0001 */
 
-		qcom,disp-doze-backlight-threshold = <8>;
+		qcom,disp-doze-lpm-backlight = <20>;
+		qcom,disp-doze-hbm-backlight = <266>;
 		qcom,disp-fod-off-dimming-delay = <85>;
 
 		qcom,elvss_dimming_check_enable;
