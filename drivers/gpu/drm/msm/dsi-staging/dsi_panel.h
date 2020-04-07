@@ -123,6 +123,8 @@ struct dsi_backlight_config {
 	u32 bl_level;
 	u32 bl_scale;
 	u32 bl_scale_ad;
+	u32 bl_doze_lpm;
+	u32 bl_doze_hbm;
 
 	int en_gpio;
 	bool dcs_type_ss;
@@ -313,6 +315,8 @@ int dsi_panel_unprepare(struct dsi_panel *panel);
 int dsi_panel_post_unprepare(struct dsi_panel *panel);
 
 int dsi_panel_set_backlight(struct dsi_panel *panel, u32 bl_lvl);
+
+u32 dsi_panel_get_backlight(struct dsi_panel *panel);
 
 int dsi_panel_update_pps(struct dsi_panel *panel);
 

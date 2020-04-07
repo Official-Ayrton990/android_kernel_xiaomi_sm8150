@@ -5211,6 +5211,31 @@ static ssize_t sysfs_fod_hbm_write(struct device *dev,
 	return count;
 }
 
+static ssize_t sysfs_backlight_level_read(struct device *dev,
+	struct device_attribute *attr, char *buf)
+{
+	struct dsi_display *display;
+	struct dsi_panel *panel;
+	u32 bl_level;
+	int rc = 0;
+
+	display = dev_get_drvdata(dev);
+	if (!display) {
+		pr_err("Invalid display\n");
+		return -EINVAL;
+	}
+
+	panel = display->panel;
+
+	mutex_lock(&panel->panel_lock);
+	bl_level = dsi_panel_get_backlight(panel);
+	mutex_unlock(&panel->panel_lock);
+
+	rc = snprintf(buf, PAGE_SIZE, "%d\n", bl_level);
+
+	return rc;
+}
+
 static DEVICE_ATTR(doze_status, 0644,
 			sysfs_doze_status_read,
 			sysfs_doze_status_write);
@@ -5223,10 +5248,15 @@ static DEVICE_ATTR(fod_hbm, 0644,
 			sysfs_fod_hbm_read,
 			sysfs_fod_hbm_write);
 
+static DEVICE_ATTR(backlight_level, 0444,
+			sysfs_backlight_level_read,
+			NULL);
+
 static struct attribute *display_fs_attrs[] = {
 	&dev_attr_doze_status.attr,
 	&dev_attr_doze_mode.attr,
 	&dev_attr_fod_hbm.attr,
+	&dev_attr_backlight_level.attr,
 	NULL,
 };
 static struct attribute_group display_fs_attrs_group = {
