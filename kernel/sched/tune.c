@@ -530,7 +530,14 @@ int schedtune_cpu_boost(int cpu)
 	if (schedtune_boost_timeout(now, bg->boost_ts))
 		schedtune_cpu_update(cpu, now);
 
-	return bg->boost_max;
+	if (is_critical_task(p)) {
+		if (top_app_full_throttle_boosting())
+			task_boost = 30;
+		else if (top_app_conservative_boosting())
+			task_boost = 10;
+	}
+
+	return task_boost;
 }
 
 int schedtune_task_boost(struct task_struct *p)
