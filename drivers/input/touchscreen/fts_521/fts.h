@@ -292,7 +292,6 @@ struct fts_ts_info {
 
 	unsigned int mode;
 	unsigned long touch_id;
-	unsigned long sleep_finger;
 	unsigned long touch_skip;
 	int coor[TOUCH_ID_MAX][2];
 #ifdef STYLUS_MODE
@@ -334,7 +333,6 @@ struct fts_ts_info {
 #ifdef CONFIG_TOUCHSCREEN_ST_DEBUG_FS
 	struct dentry *debugfs;
 #endif
-	int dbclick_count;
 #ifdef CONFIG_FTS_TOUCH_COUNT_DUMP
 	struct class *fts_tp_class;
 	struct device *fts_touch_dev;
@@ -352,15 +350,10 @@ struct fts_ts_info {
 	struct completion tp_reset_completion;
 	atomic_t system_is_resetting;
 	unsigned int fod_status;
-	unsigned int fod_overlap;
 	unsigned long fod_id;
-	unsigned long fod_x;
-	unsigned long fod_y;
 	struct mutex fod_mutex;
 	struct mutex cmd_update_mutex;
-	bool fod_coordinate_update;
 	bool fod_status_set;
-	bool fod_pressed;
 	bool p_sensor_changed;
 	bool p_sensor_switch;
 	bool palm_sensor_changed;
