@@ -1739,7 +1739,10 @@ cpu_limits_store(struct device *dev,
 		return -EINVAL;
 	}
 
-	cpu_limits_set_level(cpu, max);
+	if (!cpumask_intersects(cpumask_of(cpu), cpu_perfp_mask)) {
+		pr_info("%s set CPU%i to %i", current->comm, cpu, max);
+		cpu_limits_set_level(cpu, max);
+	}
 
 	return len;
 }
