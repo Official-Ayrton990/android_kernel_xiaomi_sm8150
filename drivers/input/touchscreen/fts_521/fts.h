@@ -331,11 +331,9 @@ struct fts_ts_info {
 #ifdef CONFIG_TOUCHSCREEN_ST_DEBUG_FS
 	struct dentry *debugfs;
 #endif
-#ifdef CONFIG_FTS_TOUCH_COUNT_DUMP
 	struct class *fts_tp_class;
 	struct device *fts_touch_dev;
 	char *current_clicknum_file;
-#endif
 #ifdef CONFIG_SECURE_TOUCH
 	struct fts_secure_info *secure_info;
 #endif
