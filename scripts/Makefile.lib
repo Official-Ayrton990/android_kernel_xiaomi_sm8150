@@ -320,12 +320,6 @@ cmd_dt_S_dtb=						\
 $(obj)/%.dtb.S: $(obj)/%.dtb
 	$(call cmd,dt_S_dtb)
 
-ifneq ($(DTC_EXT),)
-DTC = $(DTC_EXT)
-else
-DTC = $(objtree)/scripts/dtc/dtc
-endif
-
 quiet_cmd_dtc = DTC     $@
 cmd_dtc = mkdir -p $(dir ${dtc-tmp}) ; \
 	$(CPP) $(dtc_cpp_flags) -x assembler-with-cpp -o $(dtc-tmp) $< ; \
@@ -334,7 +328,7 @@ cmd_dtc = mkdir -p $(dir ${dtc-tmp}) ; \
 		-d $(depfile).dtc.tmp $(dtc-tmp) ; \
 	cat $(depfile).pre.tmp $(depfile).dtc.tmp > $(depfile)
 
-$(obj)/%.dtb: $(src)/%.dts FORCE
+$(obj)/%.dtb: $(src)/%.dts $(DTC) FORCE
 	$(call if_changed_dep,dtc)
 
 dtc-tmp = $(subst $(comma),_,$(dot-target).dts.tmp)
@@ -350,20 +344,7 @@ cmd_cat = (cat $(filter-out FORCE,$^) > $@) || (rm -f $@; false)
 
 # Bzip2 and LZMA do not include size in file... so we have to fake that;
 # append the size as a 32-bit littleendian number as gzip does.
-size_append = printf $(shell						\
-dec_size=0;								\
-for F in $1; do								\
-	fsize=$$(stat -c "%s" $$F);					\
-	dec_size=$$(expr $$dec_size + $$fsize);				\
-done;									\
-printf "%08x\n" $$dec_size |						\
-	sed 's/\(..\)/\1 /g' | {					\
-		read ch0 ch1 ch2 ch3;					\
-		for ch in $$ch3 $$ch2 $$ch1 $$ch0; do			\
-			printf '%s%03o' '\\' $$((0x$$ch)); 		\
-		done;							\
-	}								\
-)
+size_append = printf ""
 
 quiet_cmd_bzip2 = BZIP2   $@
 cmd_bzip2 = (cat $(filter-out FORCE,$^) | \
