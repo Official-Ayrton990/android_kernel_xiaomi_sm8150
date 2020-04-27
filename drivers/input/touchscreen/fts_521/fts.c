@@ -3545,8 +3545,6 @@ static void fts_gesture_event_handler(struct fts_ts_info *info,
 
 		switch (event[2]) {
 		case GEST_ID_DBLTAP:
-			if (!info->gesture_enabled)
-				goto gesture_done;
 			value = KEY_DOUBLE_TAP;
 			logError(0, "%s %s: double tap ! \n", tag, __func__);
 			get_coords = 0;
