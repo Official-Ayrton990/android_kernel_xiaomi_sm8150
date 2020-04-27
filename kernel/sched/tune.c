@@ -13,16 +13,6 @@
 
 bool schedtune_initialized = false;
 extern struct reciprocal_value schedtune_spc_rdiv;
-extern struct target_nrg schedtune_target_nrg;
-
-#ifdef CONFIG_DYNAMIC_STUNE_BOOST
-static DEFINE_MUTEX(stune_boost_mutex);
-static struct schedtune *getSchedtune(char *st_name);
-static int dynamic_boost_write(struct schedtune *st, int boost);
-#endif /* CONFIG_DYNAMIC_STUNE_BOOST */
-
-/* Performance Boost region (B) threshold params */
-static int perf_boost_idx;
 
 /* We hold schedtune boost in effect for at least this long */
 #define SCHEDTUNE_BOOST_HOLD_NS 50000000ULL
@@ -66,14 +56,6 @@ struct schedtune {
 	/* Hint to bias scheduling of tasks on that SchedTune CGroup
 	 * towards idle CPUs */
 	int prefer_idle;
-
-#ifdef CONFIG_DYNAMIC_STUNE_BOOST
-	/*
-	 * This tracks the default boost value and is used to restore
-	 * the value when Dynamic SchedTune Boost is reset.
-	 */
-	int boost_default;
-#endif /* CONFIG_DYNAMIC_STUNE_BOOST */
 };
 
 static inline struct schedtune *css_st(struct cgroup_subsys_state *css)
@@ -110,9 +92,6 @@ root_schedtune = {
 	.colocate_update_disabled = false,
 #endif
 	.prefer_idle = 0,
-#ifdef CONFIG_DYNAMIC_STUNE_BOOST
-	.boost_default = 0,
-#endif /* CONFIG_DYNAMIC_STUNE_BOOST */
 };
 
 /*
@@ -646,14 +625,6 @@ boost_write(struct cgroup_subsys_state *css, struct cftype *cft,
 		return -EINVAL;
 
 	st->boost = boost;
-#ifdef CONFIG_DYNAMIC_STUNE_BOOST
-	st->boost_default = boost;
-#endif /* CONFIG_DYNAMIC_STUNE_BOOST */
-	if (css == &root_schedtune.css) {
-		sysctl_sched_cfs_boost = boost;
-		perf_boost_idx  = threshold_idx;
-		perf_constrain_idx  = threshold_idx;
-	}
 
 	/* Update CPU boost */
 	schedtune_boostgroup_update(st->idx, st->boost);
@@ -796,224 +767,6 @@ schedtune_init_cgroups(void)
 		BOOSTGROUPS_COUNT);
 
 	schedtune_initialized = true;
-}
-
-#ifdef CONFIG_DYNAMIC_STUNE_BOOST
-static struct schedtune *getSchedtune(char *st_name)
-{
-	int idx;
-
-	for (idx = 1; idx < BOOSTGROUPS_COUNT; ++idx) {
-		char name_buf[NAME_MAX + 1];
-		struct schedtune *st = allocated_group[idx];
-
-		if (!st) {
-			pr_warn("SCHEDTUNE: Could not find %s\n", st_name);
-			break;
-		}
-
-		cgroup_name(st->css.cgroup, name_buf, sizeof(name_buf));
-		if (strncmp(name_buf, st_name, strlen(st_name)) == 0)
-			return st;
-	}
-
-	return NULL;
-}
-
-static int dynamic_boost_write(struct schedtune *st, int boost)
-{
-	int ret;
-	/* Backup boost_default */
-	int boost_default_backup = st->boost_default;
-
-	ret = boost_write(&st->css, NULL, boost);
-
-	/* Restore boost_default */
-	st->boost_default = boost_default_backup;
-
-	return ret;
-}
-
-int do_stune_boost(char *st_name, int boost)
-{
-	int ret = 0;
-	struct schedtune *st = getSchedtune(st_name);
-
-	if (!st)
-		return -EINVAL;
-
-	mutex_lock(&stune_boost_mutex);
-
-	/* Boost if new value is greater than current */
-	if (boost > st->boost)
-		ret = dynamic_boost_write(st, boost);
-
-	mutex_unlock(&stune_boost_mutex);
-
-	return ret;
-}
-
-int reset_stune_boost(char *st_name)
-{
-	int ret = 0;
-	struct schedtune *st = getSchedtune(st_name);
-
-	if (!st)
-		return -EINVAL;
-
-	mutex_lock(&stune_boost_mutex);
-	ret = dynamic_boost_write(st, st->boost_default);
-	mutex_unlock(&stune_boost_mutex);
-
-	return ret;
-}
-#endif /* CONFIG_DYNAMIC_STUNE_BOOST */
-
-#else /* CONFIG_CGROUP_SCHEDTUNE */
-
-int
-schedtune_accept_deltas(int nrg_delta, int cap_delta,
-			struct task_struct *task)
-{
-	/* Optimal (O) region */
-	if (nrg_delta < 0 && cap_delta > 0) {
-		trace_sched_tune_filter(nrg_delta, cap_delta, 0, 0, 1, 0);
-		return INT_MAX;
-	}
-
-	/* Suboptimal (S) region */
-	if (nrg_delta > 0 && cap_delta < 0) {
-		trace_sched_tune_filter(nrg_delta, cap_delta, 0, 0, -1, 5);
-		return -INT_MAX;
-	}
-
-	return __schedtune_accept_deltas(nrg_delta, cap_delta,
-			perf_boost_idx, perf_constrain_idx);
-}
-
-#endif /* CONFIG_CGROUP_SCHEDTUNE */
-
-int
-sysctl_sched_cfs_boost_handler(struct ctl_table *table, int write,
-			       void __user *buffer, size_t *lenp,
-			       loff_t *ppos)
-{
-	int ret = proc_dointvec_minmax(table, write, buffer, lenp, ppos);
-	unsigned threshold_idx;
-	int boost_pct;
-
-	if (ret || !write)
-		return ret;
-
-	if (sysctl_sched_cfs_boost < -100 || sysctl_sched_cfs_boost > 100)
-		return -EINVAL;
-	boost_pct = sysctl_sched_cfs_boost;
-
-	/*
-	 * Update threshold params for Performance Boost (B)
-	 * and Performance Constraint (C) regions.
-	 * The current implementatio uses the same cuts for both
-	 * B and C regions.
-	 */
-	threshold_idx = clamp(boost_pct, 0, 99) / 10;
-	perf_boost_idx = threshold_idx;
-	perf_constrain_idx = threshold_idx;
-
-	return 0;
-}
-
-#ifdef CONFIG_SCHED_DEBUG
-static void
-schedtune_test_nrg(unsigned long delta_pwr)
-{
-	unsigned long test_delta_pwr;
-	unsigned long test_norm_pwr;
-	int idx;
-
-	/*
-	 * Check normalization constants using some constant system
-	 * energy values
-	 */
-	pr_info("schedtune: verify normalization constants...\n");
-	for (idx = 0; idx < 6; ++idx) {
-		test_delta_pwr = delta_pwr >> idx;
-
-		/* Normalize on max energy for target platform */
-		test_norm_pwr = reciprocal_divide(
-					test_delta_pwr << SCHED_LOAD_SHIFT,
-					schedtune_target_nrg.rdiv);
-
-		pr_info("schedtune: max_pwr/2^%d: %4lu => norm_pwr: %5lu\n",
-			idx, test_delta_pwr, test_norm_pwr);
-	}
-}
-#else
-#define schedtune_test_nrg(delta_pwr)
-#endif
-
-/*
- * Compute the min/max power consumption of a cluster and all its CPUs
- */
-static void
-schedtune_add_cluster_nrg(
-		struct sched_domain *sd,
-		struct sched_group *sg,
-		struct target_nrg *ste)
-{
-	struct sched_domain *sd2;
-	struct sched_group *sg2;
-
-	struct cpumask *cluster_cpus;
-	char str[32];
-
-	unsigned long min_pwr;
-	unsigned long max_pwr;
-	int cpu;
-
-	/* Get Cluster energy using EM data for the first CPU */
-	cluster_cpus = sched_group_cpus(sg);
-	snprintf(str, 32, "CLUSTER[%*pbl]",
-		 cpumask_pr_args(cluster_cpus));
-
-	min_pwr = sg->sge->idle_states[sg->sge->nr_idle_states - 1].power;
-	max_pwr = sg->sge->cap_states[sg->sge->nr_cap_states - 1].power;
-	pr_info("schedtune: %-17s min_pwr: %5lu max_pwr: %5lu\n",
-		str, min_pwr, max_pwr);
-
-	/*
-	 * Keep track of this cluster's energy in the computation of the
-	 * overall system energy
-	 */
-	ste->min_power += min_pwr;
-	ste->max_power += max_pwr;
-
-	/* Get CPU energy using EM data for each CPU in the group */
-	for_each_cpu(cpu, cluster_cpus) {
-		/* Get a SD view for the specific CPU */
-		for_each_domain(cpu, sd2) {
-			/* Get the CPU group */
-			sg2 = sd2->groups;
-			min_pwr = sg2->sge->idle_states[sg2->sge->nr_idle_states - 1].power;
-			max_pwr = sg2->sge->cap_states[sg2->sge->nr_cap_states - 1].power;
-
-			ste->min_power += min_pwr;
-			ste->max_power += max_pwr;
-
-			snprintf(str, 32, "CPU[%d]", cpu);
-			pr_info("schedtune: %-17s min_pwr: %5lu max_pwr: %5lu\n",
-				str, min_pwr, max_pwr);
-
-			/*
-			 * Assume we have EM data only at the CPU and
-			 * the upper CLUSTER level
-			 */
-			BUG_ON(!cpumask_equal(
-				sched_group_cpus(sg),
-				sched_group_cpus(sd2->parent->groups)
-				));
-			break;
-		}
-	}
 }
 
 /*
