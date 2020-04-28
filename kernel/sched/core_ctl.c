@@ -1284,25 +1284,26 @@ static int cluster_init(const struct cpumask *mask)
 
 static int __init core_ctl_init(void)
 {
-	struct sched_cluster *cluster;
-	int ret;
-
-	cpuhp_setup_state_nocalls(CPUHP_AP_ONLINE_DYN,
-			"core_ctl/isolation:online",
-			core_ctl_isolation_online_cpu, NULL);
-
-	cpuhp_setup_state_nocalls(CPUHP_CORE_CTL_ISOLATION_DEAD,
-			"core_ctl/isolation:dead",
-			NULL, core_ctl_isolation_dead_cpu);
-
-	for_each_sched_cluster(cluster) {
-		ret = cluster_init(&cluster->cpus);
-		if (ret)
-			pr_warn("unable to create core ctl group: %d\n", ret);
-	}
-
-	initialized = true;
-	return 0;
+/*	struct sched_cluster *cluster;
+ *	int ret;
+ *
+ *	cpuhp_setup_state_nocalls(CPUHP_AP_ONLINE_DYN,
+ *			"core_ctl/isolation:online",
+ *			core_ctl_isolation_online_cpu, NULL);
+ *
+ *	cpuhp_setup_state_nocalls(CPUHP_CORE_CTL_ISOLATION_DEAD,
+ *			"core_ctl/isolation:dead",
+ *			NULL, core_ctl_isolation_dead_cpu);
+ *
+ *	for_each_sched_cluster(cluster) {
+ *		ret = cluster_init(&cluster->cpus);
+ *		if (ret)
+ *			pr_warn("unable to create core ctl group: %d\n", ret);
+ *	}
+ *
+ *	initialized = true;
+**/	
+    return 0;
 }
 
 late_initcall(core_ctl_init);
