@@ -1302,8 +1302,8 @@ static int __init core_ctl_init(void)
 	}
 
 	initialized = true;
-	
-    return 0;
+
+	return 0;
 }
 
 late_initcall(core_ctl_init);
