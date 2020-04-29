@@ -27,9 +27,6 @@
 bool fsync_enabled = true;
 module_param(fsync_enabled, bool, 0755);
 
-bool fsync_enabled = true;
-module_param(fsync_enabled, bool, 0644);
-
 #define VALID_FLAGS (SYNC_FILE_RANGE_WAIT_BEFORE|SYNC_FILE_RANGE_WRITE| \
 			SYNC_FILE_RANGE_WAIT_AFTER)
 
@@ -220,6 +217,7 @@ SYSCALL_DEFINE1(syncfs, int, fd)
 int vfs_fsync_range(struct file *file, loff_t start, loff_t end, int datasync)
 {
 
+ 	struct inode *inode;
 #ifdef CONFIG_DYNAMIC_FSYNC
 	if (likely(dyn_fsync_active && suspend_active))
 		return 0;
