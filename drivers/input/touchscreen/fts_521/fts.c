@@ -3545,7 +3545,10 @@ static void fts_gesture_event_handler(struct fts_ts_info *info,
 
 		switch (event[2]) {
 		case GEST_ID_DBLTAP:
-			value = KEY_DOUBLE_TAP;
+            if (!info->gesture_enabled)
+			    value = KEY_DOUBLE_TAP;
+            else
+                value = KEY_WAKEUP;
 			logError(0, "%s %s: double tap ! \n", tag, __func__);
 			get_coords = 0;
 			break;
@@ -5872,6 +5875,7 @@ static int fts_probe(struct spi_device *client)
 
 #ifdef GESTURE_MODE
 	input_set_capability(info->input_dev, EV_KEY, KEY_DOUBLE_TAP);
+	input_set_capability(info->input_dev, EV_KEY, KEY_WAKEUP);
 
 	input_set_capability(info->input_dev, EV_KEY, KEY_M);
 	input_set_capability(info->input_dev, EV_KEY, KEY_O);
