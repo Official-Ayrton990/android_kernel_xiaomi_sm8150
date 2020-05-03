@@ -59,7 +59,7 @@ const char *prio_to_string(enum kgsl_priority prio)
  * Each event callback has its own work struct and is run on a event specific
  * workqeuue.  This is the worker that queues up the event callback function.
  */
-static void _kgsl_event_worker(struct work_struct *work)
+static void _kgsl_event_worker(struct kthread_work *work)
 {
 	struct kgsl_event *event = container_of(work, struct kgsl_event, work);
 	int id = KGSL_CONTEXT_ID(event->context);
@@ -298,7 +298,7 @@ static int kgsl_add_event_common(struct kgsl_device *device,
 	event->group = group;
 	event->prio = prio;
 
-	INIT_WORK(&event->work, _kgsl_event_worker);
+	kthread_init_work(&event->work, _kgsl_event_worker);
 
 	trace_kgsl_register_event(
 		KGSL_CONTEXT_ID(context), timestamp, func, prio);
