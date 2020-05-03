@@ -197,6 +197,10 @@ __printf(3, 4) struct kthread_worker *
 kthread_create_worker_on_cpu(int cpu, unsigned int flags,
 			     const char namefmt[], ...);
 
+bool __kthread_queue_work(struct kthread_worker *worker,
+			  struct kthread_work *work,
+			  struct list_head *pos);
+
 bool kthread_queue_work(struct kthread_worker *worker,
 			struct kthread_work *work);
 

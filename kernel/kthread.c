@@ -786,6 +786,35 @@ static void kthread_insert_work(struct kthread_worker *worker,
 }
 
 /**
+ * __kthread_queue_work - queue a kthread_work while under lock
+ * @worker: target kthread_worker
+ * @work: kthread_work to queue
+ * @pos: The position in @worker.work_list to insert @work before
+ *
+ * This is the same as kthread_queue_work(), except that it already expects
+ * the caller to be holding &kthread_worker.lock and allows for specifying a
+ * custom position in @worker.work_list to insert @work before.
+ *
+ * This function is mostly useful for users which might need to create their
+ * own delayed kthread_worker implementations.
+ *
+ * Returns: %true if @work was successfully queued, %false if it was already
+ * pending.
+ */
+bool __kthread_queue_work(struct kthread_worker *worker,
+			  struct kthread_work *work,
+			  struct list_head *pos)
+{
+	if (!queuing_blocked(worker, work)) {
+		kthread_insert_work(worker, work, pos);
+		return true;
+	}
+
+	return false;
+}
+EXPORT_SYMBOL_GPL(__kthread_queue_work);
+
+/**
  * kthread_queue_work - queue a kthread_work
  * @worker: target kthread_worker
  * @work: kthread_work to queue
