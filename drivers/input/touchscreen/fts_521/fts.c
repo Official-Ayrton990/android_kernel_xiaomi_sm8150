@@ -3033,8 +3033,6 @@ static bool fts_is_in_fodarea(int x, int y)
 		return false;
 }
 
-static bool finger_report_flag;
-
 #endif
 
 /**
