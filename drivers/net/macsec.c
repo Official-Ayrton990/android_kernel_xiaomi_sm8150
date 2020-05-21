@@ -20,6 +20,7 @@
 #include <net/genetlink.h>
 #include <net/sock.h>
 #include <net/gro_cells.h>
+#include <linux/if_arp.h>
 #include <linux/phy.h>
 
 #include <uapi/linux/if_macsec.h>
@@ -1235,7 +1236,8 @@ static struct crypto_aead *macsec_alloc_tfm(char *key, int key_len, int icv_len)
 	struct crypto_aead *tfm;
 	int ret;
 
-	tfm = crypto_alloc_aead("gcm(aes)", 0, 0);
+	/* Pick a sync gcm(aes) cipher to ensure order is preserved. */
+	tfm = crypto_alloc_aead("gcm(aes)", 0, CRYPTO_ALG_ASYNC);
 
 	if (IS_ERR(tfm))
 		return tfm;
@@ -3197,9 +3199,6 @@ static int macsec_set_mac_address(struct net_device *dev, void *p)
 
 out:
 	ether_addr_copy(dev->dev_addr, addr->sa_data);
-<<<<<<< HEAD
-	macsec->secy.sci = dev_to_sci(dev, MACSEC_PORT_ES);
-=======
 
 	macsec->secy.sci = dev_to_sci(dev, MACSEC_PORT_ES);
 
@@ -3210,7 +3209,6 @@ out:
 		return macsec_offload(ops->mdo_upd_secy, &ctx);
 	}
 
->>>>>>> 9aa58299d65145a9e0da2fcbdbc67264ce72e546
 	return 0;
 }
 
@@ -3544,6 +3542,8 @@ static int macsec_newlink(struct net *net, struct net_device *dev,
 	rx_handler_func_t *rx_handler;
 	u8 icv_len = DEFAULT_ICV_LEN;
 	struct net_device *real_dev;
+	struct macsec_context ctx;
+	const struct macsec_ops *ops;
 	int err, mtu;
 	sci_t sci;
 
