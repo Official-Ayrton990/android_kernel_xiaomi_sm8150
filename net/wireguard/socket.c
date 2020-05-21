@@ -142,8 +142,8 @@ static int send6(struct wg_device *wg, struct sk_buff *skb,
 			if (cache)
 				dst_cache_reset(cache);
 		}
-		ret = ipv6_stub->ipv6_dst_lookup(sock_net(sock), sock, &dst,
-						 &fl);
+		ret = ipv6_stub->ipv6_dst_lookup_flow(sock_net(sock), sock, NULL,
+						 NULL);
 		if (unlikely(ret)) {
 			net_dbg_ratelimited("%s: No route to %pISpfsc, error %d\n",
 					    wg->dev->name, &endpoint->addr, ret);
