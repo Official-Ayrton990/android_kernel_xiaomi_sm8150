@@ -1644,7 +1644,7 @@ static struct snd_soc_codec_driver soc_codec_dev_cs35l41 = {
 	.ignore_pmdown_time = false,
 	.idle_bias_off = true,
 };
-
+/* nuke down int_spk_id_get its duplicated*/
 /*
 int spk_id_get(struct device_node *np)
 {
