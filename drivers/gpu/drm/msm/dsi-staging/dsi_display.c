@@ -5178,6 +5178,53 @@ static ssize_t sysfs_fod_hbm_write(struct device *dev,
 	return count;
 }
 
+static ssize_t sysfs_fod_dim_alpha_read(struct device *dev,
+	struct device_attribute *attr, char *buf)
+{
+	struct dsi_display *display;
+	uint32_t alpha;
+
+	display = dev_get_drvdata(dev);
+	if (!display) {
+		pr_err("Invalid display\n");
+		return -EINVAL;
+	}
+
+	alpha = atomic_read(&display->panel->fod_dim_alpha);
+
+	return snprintf(buf, PAGE_SIZE, "%u\n", alpha);
+}
+
+static ssize_t sysfs_fod_dim_alpha_write(struct device *dev,
+	struct device_attribute *attr, const char *buf, size_t count)
+{
+	struct dsi_display *display;
+	struct dsi_panel *panel;
+	uint32_t alpha;
+	int rc = 0;
+
+	display = dev_get_drvdata(dev);
+	if (!display) {
+		pr_err("Invalid display\n");
+		return -EINVAL;
+	}
+
+	rc = kstrtouint(buf, 10, &alpha);
+	if (rc) {
+		pr_err("%s: kstrtouint failed. rc=%d\n", __func__, rc);
+		return rc;
+	}
+
+	if (alpha > 255) {
+		pr_err("Invalid alpha\n");
+		return -EINVAL;
+	}
+
+	atomic_set(&display->panel->fod_dim_alpha, alpha);
+
+	return count;
+}
+
 static DEVICE_ATTR(doze_status, 0644,
 			sysfs_doze_status_read,
 			sysfs_doze_status_write);
@@ -5190,10 +5237,15 @@ static DEVICE_ATTR(fod_hbm, 0644,
 			sysfs_fod_hbm_read,
 			sysfs_fod_hbm_write);
 
+static DEVICE_ATTR(fod_dim_alpha, 0644,
+			sysfs_fod_dim_alpha_read,
+			sysfs_fod_dim_alpha_write);
+
 static struct attribute *display_fs_attrs[] = {
 	&dev_attr_doze_status.attr,
 	&dev_attr_doze_mode.attr,
 	&dev_attr_fod_hbm.attr,
+	&dev_attr_fod_dim_alpha.attr,
 	NULL,
 };
 static struct attribute_group display_fs_attrs_group = {
