@@ -5025,7 +5025,7 @@ static ssize_t sysfs_doze_status_read(struct device *dev,
 {
 	struct dsi_display *display;
 	struct dsi_panel *panel;
-	int rc = 0;
+	bool status;
 
 	display = dev_get_drvdata(dev);
 	if (!display) {
@@ -5036,10 +5036,10 @@ static ssize_t sysfs_doze_status_read(struct device *dev,
 	panel = display->panel;
 
 	mutex_lock(&panel->panel_lock);
-	rc = snprintf(buf, PAGE_SIZE, "%d\n", panel->doze_enabled);
+	status = panel->doze_enabled;
 	mutex_unlock(&panel->panel_lock);
 
-	return rc;
+	return snprintf(buf, PAGE_SIZE, "%d\n", status);
 }
 
 static ssize_t sysfs_doze_status_write(struct device *dev,
@@ -5047,8 +5047,8 @@ static ssize_t sysfs_doze_status_write(struct device *dev,
 {
 	struct dsi_display *display;
 	struct dsi_panel *panel;
+	bool status;
 	int rc = 0;
-	int status;
 
 	display = dev_get_drvdata(dev);
 	if (!display) {
@@ -5056,16 +5056,16 @@ static ssize_t sysfs_doze_status_write(struct device *dev,
 		return -EINVAL;
 	}
 
-	rc = kstrtoint(buf, 10, &status);
+	rc = kstrtobool(buf, &status);
 	if (rc) {
-		pr_err("%s: kstrtoint failed. rc=%d\n", __func__, rc);
+		pr_err("%s: kstrtobool failed. rc=%d\n", __func__, rc);
 		return rc;
 	}
 
 	panel = display->panel;
 
 	mutex_lock(&panel->panel_lock);
-	dsi_panel_set_doze_status(panel, !!status);
+	dsi_panel_set_doze_status(panel, status);
 	mutex_unlock(&panel->panel_lock);
 
 	return count;
@@ -5074,9 +5074,9 @@ static ssize_t sysfs_doze_status_write(struct device *dev,
 static ssize_t sysfs_doze_mode_read(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
+	enum dsi_doze_mode_type doze_mode;
 	struct dsi_display *display;
 	struct dsi_panel *panel;
-	int rc = 0;
 
 	display = dev_get_drvdata(dev);
 	if (!display) {
@@ -5087,10 +5087,10 @@ static ssize_t sysfs_doze_mode_read(struct device *dev,
 	panel = display->panel;
 
 	mutex_lock(&panel->panel_lock);
-	rc = snprintf(buf, PAGE_SIZE, "%d\n", panel->doze_mode);
+	doze_mode = panel->doze_mode;
 	mutex_unlock(&panel->panel_lock);
 
-	return rc;
+	return snprintf(buf, PAGE_SIZE, "%d\n", doze_mode);
 }
 
 static ssize_t sysfs_doze_mode_write(struct device *dev,
