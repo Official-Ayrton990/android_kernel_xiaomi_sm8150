@@ -5132,7 +5132,7 @@ static ssize_t sysfs_fod_hbm_read(struct device *dev,
 {
 	struct dsi_display *display;
 	struct dsi_panel *panel;
-	int rc = 0;
+	bool status;
 
 	display = dev_get_drvdata(dev);
 	if (!display) {
@@ -5143,10 +5143,10 @@ static ssize_t sysfs_fod_hbm_read(struct device *dev,
 	panel = display->panel;
 
 	mutex_lock(&panel->panel_lock);
-	rc = snprintf(buf, PAGE_SIZE, "%d\n", panel->fod_hbm_enabled);
+	status = panel->fod_hbm_enabled;
 	mutex_unlock(&panel->panel_lock);
 
-	return rc;
+	return snprintf(buf, PAGE_SIZE, "%d\n", status);
 }
 
 static ssize_t sysfs_fod_hbm_write(struct device *dev,
@@ -5154,7 +5154,7 @@ static ssize_t sysfs_fod_hbm_write(struct device *dev,
 {
 	struct dsi_display *display;
 	struct dsi_panel *panel;
-	int status;
+	bool status;
 	int rc = 0;
 
 	display = dev_get_drvdata(dev);
@@ -5163,16 +5163,16 @@ static ssize_t sysfs_fod_hbm_write(struct device *dev,
 		return -EINVAL;
 	}
 
-	rc = kstrtoint(buf, 10, &status);
+	rc = kstrtobool(buf, &status);
 	if (rc) {
-		pr_err("%s: kstrtoint failed. rc=%d\n", __func__, rc);
+		pr_err("%s: kstrtobool failed. rc=%d\n", __func__, rc);
 		return rc;
 	}
 
 	panel = display->panel;
 
 	mutex_lock(&panel->panel_lock);
-	dsi_panel_set_fod_hbm_status(panel, !!status);
+	dsi_panel_set_fod_hbm_status(panel, status);
 	mutex_unlock(&panel->panel_lock);
 
 	return count;
