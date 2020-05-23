@@ -48,18 +48,21 @@
 
 DEFINE_PER_CPU_SHARED_ALIGNED(struct rq, runqueues);
 
+#if defined(CONFIG_SCHED_DEBUG) && defined(HAVE_JUMP_LABEL)
 /*
  * Debugging: various feature bits
+ *
+ * If SCHED_DEBUG is disabled, each compilation unit has its own copy of
+ * sysctl_sched_features, defined in sched.h, to allow constants propagation
+ * at compile time and compiler optimization based on features default.
  */
-
 #define SCHED_FEAT(name, enabled)	\
 	(1UL << __SCHED_FEAT_##name) * enabled |
-
 const_debug unsigned int sysctl_sched_features =
 #include "features.h"
 	0;
-
 #undef SCHED_FEAT
+#endif
 
 /*
  * Number of tasks to iterate in a single balance run.
@@ -139,11 +142,12 @@ struct rq *task_rq_lock(struct task_struct *p, struct rq_flags *rf)
 		 *					[L] ->on_rq
 		 *	RELEASE (rq->lock)
 		 *
-		 * If we observe the old cpu in task_rq_lock, the acquire of
+		 * If we observe the old CPU in task_rq_lock(), the acquire of
 		 * the old rq->lock will fully serialize against the stores.
 		 *
-		 * If we observe the new CPU in task_rq_lock, the acquire will
-		 * pair with the WMB to ensure we must then also see migrating.
+		 * If we observe the new CPU in task_rq_lock(), the address
+		 * dependency headed by '[L] rq = task_rq()' and the acquire
+		 * will pair with the WMB to ensure we then also see migrating.
 		 */
 		if (likely(rq == task_rq(p) && !task_on_rq_migrating(p))) {
 			rq_pin_lock(rq, rf);
@@ -442,7 +446,7 @@ void wake_q_add(struct wake_q_head *head, struct task_struct *task)
 	 * state, even in the failed case, an explicit smp_mb() must be used.
 	 */
 	smp_mb__before_atomic();
-	if (cmpxchg_relaxed(&node->next, NULL, WAKE_Q_TAIL))
+	if (unlikely(cmpxchg_relaxed(&node->next, NULL, WAKE_Q_TAIL)))
 		return;
 
 	head->count++;
@@ -972,11 +976,16 @@ static struct rq *move_queued_task(struct rq *rq, struct rq_flags *rf,
 {
 	lockdep_assert_held(&rq->lock);
 
-	p->on_rq = TASK_ON_RQ_MIGRATING;
+	WRITE_ONCE(p->on_rq, TASK_ON_RQ_MIGRATING);
 	dequeue_task(rq, p, DEQUEUE_NOCLOCK);
+#ifdef CONFIG_SCHED_WALT
 	double_lock_balance(rq, cpu_rq(new_cpu));
 	set_task_cpu(p, new_cpu);
 	double_rq_unlock(cpu_rq(new_cpu), rq);
+#else
+	set_task_cpu(p, new_cpu);
+	rq_unlock(rq, rf);
+#endif
 
 	rq = cpu_rq(new_cpu);
 
@@ -1070,6 +1079,17 @@ void set_cpus_allowed_common(struct task_struct *p, const struct cpumask *new_ma
 	p->nr_cpus_allowed = cpumask_weight(new_mask);
 }
 
+static const struct cpumask *
+adjust_cpumask(const struct task_struct *p,
+		     const struct cpumask *orig_mask)
+{
+	/* Force all performance-critical kthreads onto the big cluster */
+	if (p->flags & PF_PERF_CRITICAL)
+		return cpu_perf_mask;
+
+	return orig_mask;
+}
+
 void do_set_cpus_allowed(struct task_struct *p, const struct cpumask *new_mask)
 {
 	struct rq *rq = task_rq(p);
@@ -1118,6 +1138,8 @@ static int __set_cpus_allowed_ptr(struct task_struct *p,
 	int ret = 0;
 	cpumask_t allowed_mask;
 
+	new_mask = adjust_cpumask(p, new_mask);
+
 	rq = task_rq_lock(p, &rf);
 	update_rq_clock(rq);
 
@@ -1141,8 +1163,13 @@ static int __set_cpus_allowed_ptr(struct task_struct *p,
 		goto out;
 
 	cpumask_andnot(&allowed_mask, new_mask, cpu_isolated_mask);
-	cpumask_and(&allowed_mask, &allowed_mask, cpu_valid_mask);
 
+	/*
+	 * Picking a ~random cpu helps in cases where we are changing affinity
+	 * for groups of tasks (ie. cpuset), so that load balancing is not
+	 * immediately required to distribute the tasks within their new mask.
+	 */
+/*	dest_cpu = cpumask_any_and_distribute(cpu_valid_mask, &allowed_mask);*/
 	dest_cpu = cpumask_any(&allowed_mask);
 	if (dest_cpu >= nr_cpu_ids) {
 		cpumask_and(&allowed_mask, cpu_valid_mask, new_mask);
@@ -2294,9 +2321,6 @@ static void __sched_fork(unsigned long clone_flags, struct task_struct *p)
 	p->se.nr_migrations		= 0;
 	p->se.vruntime			= 0;
 	p->last_sleep_ts		= 0;
-	p->boost                = 0;
-	p->boost_expires        = 0;
-	p->boost_period         = 0;
 
 	INIT_LIST_HEAD(&p->se.group_node);
 
@@ -2589,6 +2613,7 @@ void wake_up_new_task(struct task_struct *p)
 	 * Use __set_task_cpu() to avoid calling sched_class::migrate_task_rq,
 	 * as we're not fully set-up yet.
 	 */
+	p->recent_used_cpu = task_cpu(p);
 	__set_task_cpu(p, select_task_rq(p, task_cpu(p), SD_BALANCE_FORK, 0, 1));
 #endif
 	rq = __task_rq_lock(p, &rf);
@@ -6841,11 +6866,12 @@ static void sched_update_down_migrate_values(int cap_margin_levels,
 
 	if (cap_margin_levels > 1) {
 		/*
-		 * Skip first cluster as down migrate value isn't needed
+		 * Skip last cluster as down migrate value isn't needed.
+		 * Because there is no downmigration to it.
 		 */
 		for (i = 0; i < cap_margin_levels; i++)
-			if (cluster_cpus[i+1])
-				for_each_cpu(cpu, cluster_cpus[i+1])
+			if (cluster_cpus[i])
+				for_each_cpu(cpu, cluster_cpus[i])
 					sched_capacity_margin_down[cpu] =
 					sysctl_sched_capacity_margin_down[i];
 	} else {
@@ -7443,26 +7469,6 @@ const u32 sched_prio_to_wmult[40] = {
  /*  10 */  39045157,  49367440,  61356676,  76695844,  95443717,
  /*  15 */ 119304647, 148102320, 186737708, 238609294, 286331153,
 };
-
-/*
- *@boost:should be 0,1,2.
- *@period:boost time based on ms units.
- */
-int set_task_boost(int boost, u64 period)
-{
-	if (boost < 0 || boost > 2)
-		return -EINVAL;
-	if (boost) {
-		current->boost = boost;
-		current->boost_period = (u64)period * 1000 * 1000;
-		current->boost_expires = sched_clock() + current->boost_period;
-	} else {
-		current->boost = 0;
-		current->boost_expires = 0;
-		current->boost_period = 0;
-	}
-	return 0;
-}
 
 #ifdef CONFIG_SCHED_WALT
 /*
