@@ -5142,9 +5142,7 @@ static ssize_t sysfs_fod_hbm_read(struct device *dev,
 
 	panel = display->panel;
 
-	mutex_lock(&panel->panel_lock);
-	status = panel->fod_hbm_enabled;
-	mutex_unlock(&panel->panel_lock);
+	status = atomic_read(&panel->fod_hbm_enabled);
 
 	return snprintf(buf, PAGE_SIZE, "%d\n", status);
 }

@@ -689,7 +689,7 @@ error:
 int dsi_panel_update_doze(struct dsi_panel *panel) {
 	int rc = 0;
 
-	if (panel->fod_hbm_enabled)
+	if (atomic_read(&panel->fod_hbm_enabled))
 		return 0;
 
 	if (panel->doze_enabled && panel->doze_mode == DSI_DOZE_HBM) {
@@ -736,7 +736,7 @@ int dsi_panel_set_doze_mode(struct dsi_panel *panel, enum dsi_doze_mode_type mod
 int dsi_panel_update_fod_hbm(struct dsi_panel *panel) {
 	int rc = 0;
 
-	if (panel->fod_hbm_enabled) {
+	if (atomic_read(&panel->fod_hbm_enabled)) {
 		rc = dsi_panel_tx_cmd_set(panel, DSI_CMD_SET_DISP_HBM_FOD_ON);
 		if (rc)
 			pr_err("[%s] failed to send DSI_CMD_SET_DISP_HBM_FOD_ON cmd, rc=%d\n",
@@ -754,10 +754,8 @@ int dsi_panel_update_fod_hbm(struct dsi_panel *panel) {
 }
 
 int dsi_panel_set_fod_hbm_status(struct dsi_panel *panel, bool status) {
-	if (panel->fod_hbm_enabled == status)
+	if (atomic_xchg(&panel->fod_hbm_enabled, status) == status)
 		return 0;
-
-	panel->fod_hbm_enabled = status;
 
 	return dsi_panel_update_fod_hbm(panel);
 }
@@ -3461,7 +3459,7 @@ struct dsi_panel *dsi_panel_get(struct device *parent,
 
 	panel->doze_mode = DSI_DOZE_LPM;
 	panel->doze_enabled = false;
-	panel->fod_hbm_enabled = false;
+	atomic_set(&panel->fod_hbm_enabled, false);
 
 	panel->power_mode = SDE_MODE_DPMS_OFF;
 	drm_panel_init(&panel->drm_panel);
@@ -4450,7 +4448,7 @@ int dsi_panel_disable(struct dsi_panel *panel)
 	panel->panel_initialized = false;
 	panel->power_mode = SDE_MODE_DPMS_OFF;
 	panel->doze_enabled = false;
-	panel->fod_hbm_enabled = false;
+	atomic_set(&panel->fod_hbm_enabled, false);
 
 	mutex_unlock(&panel->panel_lock);
 	return rc;
