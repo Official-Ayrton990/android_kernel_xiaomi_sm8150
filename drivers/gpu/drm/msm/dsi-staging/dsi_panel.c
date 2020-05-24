@@ -765,13 +765,6 @@ int dsi_panel_update_fod_hbm(struct dsi_panel *panel) {
 	return rc;
 }
 
-int dsi_panel_set_fod_hbm_status(struct dsi_panel *panel, bool status) {
-	if (atomic_xchg(&panel->fod_hbm_enabled, status) == status)
-		return 0;
-
-	return dsi_panel_update_fod_hbm(panel);
-}
-
 int dsi_panel_set_backlight(struct dsi_panel *panel, u32 bl_lvl)
 {
 	int rc = 0;
