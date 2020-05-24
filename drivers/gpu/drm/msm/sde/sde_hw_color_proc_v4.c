@@ -234,13 +234,6 @@ void sde_setup_dspp_pccv4(struct sde_hw_dspp *ctx, void *cfg)
 		return;
 	}
 
-#if 1
-	pr_info("%s [CLEANSLATE] kcal setup... \n",__func__);
-	if (r<min) r= min;
-	if (g<min) g= min;
-	if (b<min) b= min;
-#endif
-
 	if (kcal_red < kcal_min)
 		kcal_red = kcal_min;
 	if (kcal_green < kcal_min)
