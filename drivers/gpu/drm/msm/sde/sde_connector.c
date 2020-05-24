@@ -624,6 +624,42 @@ end:
 	return rc;
 }
 
+void sde_connector_update_hbm(struct drm_connector *connector)
+{
+	static bool effective_status = false;
+	struct sde_crtc_state *cstate;
+	struct sde_connector *c_conn;
+	struct dsi_display *display;
+	bool status;
+
+	if (!connector) {
+		SDE_ERROR("invalid connector\n");
+		return;
+	}
+
+	c_conn = to_sde_connector(connector);
+	if (c_conn->connector_type != DRM_MODE_CONNECTOR_DSI)
+		return;
+
+	display = (struct dsi_display *) c_conn->display;
+
+	if (!c_conn->encoder || !c_conn->encoder->crtc ||
+			!c_conn->encoder->crtc->state)
+		return;
+
+	cstate = to_sde_crtc_state(c_conn->encoder->crtc->state);
+	status = cstate->fod_dim_layer ?
+			cstate->fod_dim_layer->color_fill.color_3 != 0 : false;
+	if (status == effective_status)
+		return;
+
+	effective_status = status;
+
+	mutex_lock(&display->panel->panel_lock);
+	dsi_panel_set_fod_hbm(display->panel, status);
+	mutex_unlock(&display->panel->panel_lock);
+}
+
 int sde_connector_prepare_commit(struct drm_connector *connector)
 {
 	struct sde_connector *c_conn;

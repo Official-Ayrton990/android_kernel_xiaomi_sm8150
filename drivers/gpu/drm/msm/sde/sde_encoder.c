@@ -4743,6 +4743,9 @@ int sde_encoder_prepare_for_kickoff(struct drm_encoder *drm_enc,
 		sde_configure_qdss(sde_enc, sde_enc->cur_master->hw_qdss,
 				sde_enc->cur_master, sde_kms->qdss_enabled);
 
+	if (sde_enc->cur_master && sde_enc->cur_master->connector)
+		sde_connector_update_hbm(sde_enc->cur_master->connector);
+
 end:
 	SDE_ATRACE_END("sde_encoder_prepare_for_kickoff");
 	return ret;
