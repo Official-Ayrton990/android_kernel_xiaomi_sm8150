@@ -705,7 +705,7 @@ static u32 interpolate(uint32_t x, uint32_t xa, uint32_t xb, uint32_t ya, uint32
 	return ya - (ya - yb) * (x - xa) / (xb - xa);;
 }
 
-static u32 dsi_panel_get_fod_dim_alpha(struct dsi_panel *panel)
+u32 dsi_panel_get_fod_dim_alpha(struct dsi_panel *panel)
 {
 	u32 brightness = dsi_panel_get_backlight(panel);
 	int i;
@@ -728,19 +728,8 @@ static u32 dsi_panel_get_fod_dim_alpha(struct dsi_panel *panel)
 			panel->fod_dim_lut[i - 1].alpha, panel->fod_dim_lut[i].alpha);
 }
 
-u32 dsi_panel_get_effective_fod_dim_alpha(struct dsi_panel *panel)
-{
-	if (!atomic_read(&panel->fod_hbm_enabled))
-		return 0;
-
-	return dsi_panel_get_fod_dim_alpha(panel);
-}
-
 int dsi_panel_update_doze(struct dsi_panel *panel) {
 	int rc = 0;
-
-	if (atomic_read(&panel->fod_hbm_enabled))
-		return 0;
 
 	if (panel->doze_enabled && panel->doze_mode == DSI_DOZE_HBM) {
 		rc = dsi_panel_tx_cmd_set(panel, DSI_CMD_SET_DOZE_HBM);
@@ -3587,7 +3576,6 @@ struct dsi_panel *dsi_panel_get(struct device *parent,
 
 	panel->doze_mode = DSI_DOZE_LPM;
 	panel->doze_enabled = false;
-	atomic_set(&panel->fod_hbm_enabled, false);
 
 	panel->power_mode = SDE_MODE_DPMS_OFF;
 	drm_panel_init(&panel->drm_panel);
@@ -4576,7 +4564,6 @@ int dsi_panel_disable(struct dsi_panel *panel)
 	panel->panel_initialized = false;
 	panel->power_mode = SDE_MODE_DPMS_OFF;
 	panel->doze_enabled = false;
-	atomic_set(&panel->fod_hbm_enabled, false);
 
 	mutex_unlock(&panel->panel_lock);
 	return rc;

@@ -4868,8 +4868,8 @@ static int sde_plane_atomic_set_property(struct drm_plane *plane,
 		idx = msm_property_index(&psde->property_info,
 				property);
 		if (idx == PLANE_PROP_ZPOS) {
-			if (val & 0x40000000u) {
-				val &= ~0x40000000u;
+			if (val & 0x20000000u) {
+				val &= ~0x20000000u;
 				fod_val = 1;
 			}
 
