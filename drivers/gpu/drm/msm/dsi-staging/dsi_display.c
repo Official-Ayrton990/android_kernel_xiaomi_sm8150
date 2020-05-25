@@ -5183,7 +5183,8 @@ static ssize_t sysfs_backlight_level_read(struct device *dev,
 {
 	struct dsi_display *display;
 	struct dsi_panel *panel;
-	uint32_t bl_level;
+	u32 bl_level;
+	int rc = 0;
 
 	display = dev_get_drvdata(dev);
 	if (!display) {
@@ -5197,7 +5198,9 @@ static ssize_t sysfs_backlight_level_read(struct device *dev,
 	bl_level = dsi_panel_get_backlight(panel);
 	mutex_unlock(&panel->panel_lock);
 
-	return snprintf(buf, PAGE_SIZE, "%u\n", bl_level);
+	rc = snprintf(buf, PAGE_SIZE, "%d\n", bl_level);
+
+	return rc;
 }
 
 static DEVICE_ATTR(doze_status, 0644,
