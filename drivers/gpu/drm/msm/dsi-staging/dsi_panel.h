@@ -228,7 +228,6 @@ struct dsi_panel {
 	enum dsi_doze_mode_type doze_mode;
 
 	atomic_t fod_hbm_enabled;
-	atomic_t fod_dim_alpha;
 };
 
 static inline bool dsi_panel_ulps_feature_enabled(struct dsi_panel *panel)

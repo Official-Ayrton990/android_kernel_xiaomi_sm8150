@@ -690,10 +690,8 @@ u32 dsi_panel_get_effective_fod_dim_alpha(struct dsi_panel *panel)
 {
 	u32 alpha;
 
-	if (atomic_read(&panel->fod_hbm_enabled))
-		alpha = atomic_read(&panel->fod_dim_alpha);
-	else
-		alpha = 0;
+	if (!atomic_read(&panel->fod_hbm_enabled))
+		return 0;
 
 	return alpha;
 }
@@ -3466,7 +3464,6 @@ struct dsi_panel *dsi_panel_get(struct device *parent,
 	panel->doze_mode = DSI_DOZE_LPM;
 	panel->doze_enabled = false;
 	atomic_set(&panel->fod_hbm_enabled, false);
-	atomic_set(&panel->fod_dim_alpha, 0);
 
 	panel->power_mode = SDE_MODE_DPMS_OFF;
 	drm_panel_init(&panel->drm_panel);
