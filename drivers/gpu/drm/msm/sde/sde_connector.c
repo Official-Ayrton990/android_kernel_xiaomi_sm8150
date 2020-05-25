@@ -629,7 +629,7 @@ end:
 
 void sde_connector_update_hbm(struct drm_connector *connector)
 {
-	static bool effective_status = false;
+	static atomic_t effective_status = ATOMIC_INIT(false);
 	struct sde_crtc_state *cstate;
 	struct sde_connector *c_conn;
 	struct dsi_display *display;
@@ -653,10 +653,8 @@ void sde_connector_update_hbm(struct drm_connector *connector)
 	cstate = to_sde_crtc_state(c_conn->encoder->crtc->state);
 	status = cstate->fod_dim_layer ?
 			cstate->fod_dim_layer->color_fill.color_3 != 0 : false;
-	if (status == effective_status)
+	if (atomic_xchg(&effective_status, status) == status)
 		return;
-
-	effective_status = status;
 
 	mutex_lock(&display->panel->panel_lock);
 	dsi_panel_set_fod_hbm(display->panel, status);
