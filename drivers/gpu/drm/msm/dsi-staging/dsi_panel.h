@@ -175,6 +175,12 @@ struct drm_panel_esd_config {
 	u32 groups;
 };
 
+#define BRIGHTNESS_ALPHA_PAIR_LEN 2
+struct brightness_alpha_pair {
+	u32 brightness;
+	u32 alpha;
+};
+
 struct dsi_panel {
 	const char *name;
 	const char *type;
@@ -229,6 +235,8 @@ struct dsi_panel {
 	bool doze_enabled;
 	enum dsi_doze_mode_type doze_mode;
 
+	struct brightness_alpha_pair *fod_dim_lut;
+	u32 fod_dim_lut_count;
 	atomic_t fod_hbm_enabled;
 };
 

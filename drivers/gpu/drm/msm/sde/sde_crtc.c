@@ -5291,7 +5291,10 @@ static struct sde_hw_dim_layer* sde_crtc_setup_fod_dim_layer(
 		goto error;
 	}
 
+	mutex_lock(&display->panel->panel_lock);
 	alpha = dsi_panel_get_effective_fod_dim_alpha(display->panel);
+	mutex_unlock(&display->panel->panel_lock);
+
 	if (!alpha)
 		goto error;
 
