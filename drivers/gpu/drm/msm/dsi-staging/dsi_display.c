@@ -60,6 +60,8 @@ static const struct of_device_id dsi_display_dt_match[] = {
 	{}
 };
 
+struct dsi_display *primary_display;
+
 static void dsi_display_mask_ctrl_error_interrupts(struct dsi_display *display,
 			u32 mask, bool enable)
 {
@@ -5025,7 +5027,7 @@ static ssize_t sysfs_doze_status_read(struct device *dev,
 {
 	struct dsi_display *display;
 	struct dsi_panel *panel;
-	int rc = 0;
+	bool status;
 
 	display = dev_get_drvdata(dev);
 	if (!display) {
@@ -5036,10 +5038,10 @@ static ssize_t sysfs_doze_status_read(struct device *dev,
 	panel = display->panel;
 
 	mutex_lock(&panel->panel_lock);
-	rc = snprintf(buf, PAGE_SIZE, "%d\n", panel->doze_enabled);
+	status = panel->doze_enabled;
 	mutex_unlock(&panel->panel_lock);
 
-	return rc;
+	return snprintf(buf, PAGE_SIZE, "%d\n", status);
 }
 
 static ssize_t sysfs_doze_status_write(struct device *dev,
@@ -5047,8 +5049,8 @@ static ssize_t sysfs_doze_status_write(struct device *dev,
 {
 	struct dsi_display *display;
 	struct dsi_panel *panel;
+	bool status;
 	int rc = 0;
-	int status;
 
 	display = dev_get_drvdata(dev);
 	if (!display) {
@@ -5056,16 +5058,16 @@ static ssize_t sysfs_doze_status_write(struct device *dev,
 		return -EINVAL;
 	}
 
-	rc = kstrtoint(buf, 10, &status);
+	rc = kstrtobool(buf, &status);
 	if (rc) {
-		pr_err("%s: kstrtoint failed. rc=%d\n", __func__, rc);
+		pr_err("%s: kstrtobool failed. rc=%d\n", __func__, rc);
 		return rc;
 	}
 
 	panel = display->panel;
 
 	mutex_lock(&panel->panel_lock);
-	dsi_panel_set_doze_status(panel, !!status);
+	dsi_panel_set_doze_status(panel, status);
 	mutex_unlock(&panel->panel_lock);
 
 	return count;
@@ -5074,9 +5076,9 @@ static ssize_t sysfs_doze_status_write(struct device *dev,
 static ssize_t sysfs_doze_mode_read(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
+	enum dsi_doze_mode_type doze_mode;
 	struct dsi_display *display;
 	struct dsi_panel *panel;
-	int rc = 0;
 
 	display = dev_get_drvdata(dev);
 	if (!display) {
@@ -5087,10 +5089,10 @@ static ssize_t sysfs_doze_mode_read(struct device *dev,
 	panel = display->panel;
 
 	mutex_lock(&panel->panel_lock);
-	rc = snprintf(buf, PAGE_SIZE, "%d\n", panel->doze_mode);
+	doze_mode = panel->doze_mode;
 	mutex_unlock(&panel->panel_lock);
 
-	return rc;
+	return snprintf(buf, PAGE_SIZE, "%d\n", doze_mode);
 }
 
 static ssize_t sysfs_doze_mode_write(struct device *dev,
@@ -5127,82 +5129,6 @@ static ssize_t sysfs_doze_mode_write(struct device *dev,
 	return count;
 }
 
-static ssize_t sysfs_fod_hbm_read(struct device *dev,
-	struct device_attribute *attr, char *buf)
-{
-	struct dsi_display *display;
-	struct dsi_panel *panel;
-	int rc = 0;
-
-	display = dev_get_drvdata(dev);
-	if (!display) {
-		pr_err("Invalid display\n");
-		return -EINVAL;
-	}
-
-	panel = display->panel;
-
-	mutex_lock(&panel->panel_lock);
-	rc = snprintf(buf, PAGE_SIZE, "%d\n", panel->fod_hbm_enabled);
-	mutex_unlock(&panel->panel_lock);
-
-	return rc;
-}
-
-static ssize_t sysfs_fod_hbm_write(struct device *dev,
-	struct device_attribute *attr, const char *buf, size_t count)
-{
-	struct dsi_display *display;
-	struct dsi_panel *panel;
-	int status;
-	int rc = 0;
-
-	display = dev_get_drvdata(dev);
-	if (!display) {
-		pr_err("Invalid display\n");
-		return -EINVAL;
-	}
-
-	rc = kstrtoint(buf, 10, &status);
-	if (rc) {
-		pr_err("%s: kstrtoint failed. rc=%d\n", __func__, rc);
-		return rc;
-	}
-
-	panel = display->panel;
-
-	mutex_lock(&panel->panel_lock);
-	dsi_panel_set_fod_hbm_status(panel, !!status);
-	mutex_unlock(&panel->panel_lock);
-
-	return count;
-}
-
-static ssize_t sysfs_backlight_level_read(struct device *dev,
-	struct device_attribute *attr, char *buf)
-{
-	struct dsi_display *display;
-	struct dsi_panel *panel;
-	u32 bl_level;
-	int rc = 0;
-
-	display = dev_get_drvdata(dev);
-	if (!display) {
-		pr_err("Invalid display\n");
-		return -EINVAL;
-	}
-
-	panel = display->panel;
-
-	mutex_lock(&panel->panel_lock);
-	bl_level = dsi_panel_get_backlight(panel);
-	mutex_unlock(&panel->panel_lock);
-
-	rc = snprintf(buf, PAGE_SIZE, "%d\n", bl_level);
-
-	return rc;
-}
-
 static DEVICE_ATTR(doze_status, 0644,
 			sysfs_doze_status_read,
 			sysfs_doze_status_write);
@@ -5211,19 +5137,9 @@ static DEVICE_ATTR(doze_mode, 0644,
 			sysfs_doze_mode_read,
 			sysfs_doze_mode_write);
 
-static DEVICE_ATTR(fod_hbm, 0644,
-			sysfs_fod_hbm_read,
-			sysfs_fod_hbm_write);
-
-static DEVICE_ATTR(backlight_level, 0444,
-			sysfs_backlight_level_read,
-			NULL);
-
 static struct attribute *display_fs_attrs[] = {
 	&dev_attr_doze_status.attr,
 	&dev_attr_doze_mode.attr,
-	&dev_attr_fod_hbm.attr,
-	&dev_attr_backlight_level.attr,
 	NULL,
 };
 static struct attribute_group display_fs_attrs_group = {
@@ -6594,6 +6510,7 @@ int dsi_display_get_modes(struct dsi_display *display,
 exit:
 	*out_modes = display->modes;
 	rc = 0;
+	primary_display = display;
 
 error:
 	if (rc)
@@ -7978,6 +7895,10 @@ int dsi_display_unprepare(struct dsi_display *display)
 
 	SDE_EVT32(SDE_EVTLOG_FUNC_EXIT);
 	return rc;
+}
+
+struct dsi_display *get_main_display(void) {
+	return primary_display;
 }
 
 static int __init dsi_display_register(void)
