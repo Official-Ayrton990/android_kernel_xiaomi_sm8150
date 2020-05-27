@@ -686,7 +686,7 @@ error:
 	return rc;
 }
 
-static u32 dsi_panel_get_backlight(struct dsi_panel *panel)
+u32 dsi_panel_get_backlight(struct dsi_panel *panel)
 {
 	u32 bl_level;
 
@@ -803,20 +803,6 @@ int dsi_panel_set_backlight(struct dsi_panel *panel, u32 bl_lvl)
 	}
 
 	return rc;
-}
-
-u32 dsi_panel_get_backlight(struct dsi_panel *panel)
-{
-	u32 bl_level;
-
-	if (panel->doze_enabled && panel->doze_mode == DSI_DOZE_HBM)
-		bl_level = panel->bl_config.bl_doze_hbm;
-	else if (panel->doze_enabled && panel->doze_mode == DSI_DOZE_LPM)
-		bl_level = panel->bl_config.bl_doze_lpm;
-	else if (!panel->doze_enabled)
-		bl_level = panel->bl_config.bl_level;
-
-	return bl_level;
 }
 
 static u32 dsi_panel_get_brightness(struct dsi_backlight_config *bl)
