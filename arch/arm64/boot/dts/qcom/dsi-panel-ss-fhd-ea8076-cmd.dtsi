@@ -59,7 +59,7 @@
 		qcom,mdss-dsi-panel-blackness-level = <3230>;
 		qcom,mdss-dsi-panel-fod-dimlayer-enabled;
 
-		qcom,dispparam-enabled;
+		qcom,dispparam-enabled;	
 		qcom,mdss-panel-on-dimming-delay = <120>;
 		qcom,mdss-dsi-panel-dc-threshold = <610>;
 		/* IRQF_ONESHOT | IRQF_TRIGGER_FALLING */
