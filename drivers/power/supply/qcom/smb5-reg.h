@@ -1,4 +1,5 @@
 /* Copyright (c) 2018-2019 The Linux Foundation. All rights reserved.
+ * Copyright (C) 2019 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -258,6 +259,13 @@ enum {
 #define SINGLE_DECREMENT_BIT			BIT(1)
 #define SINGLE_INCREMENT_BIT			BIT(0)
 
+#define USBIN_ADAPTER_ALLOW_OVERRIDE_REG	(USBIN_BASE + 0x44)
+#define CONTINUOUS				BIT(3)
+#define FORCE_12V				BIT(2)
+#define FORCE_9V				BIT(1)
+#define FORCE_5V				BIT(0)
+#define FORCE_NULL				0
+
 #define USB_CMD_PULLDOWN_REG			(USBIN_BASE + 0x45)
 #define EN_PULLDOWN_USB_IN_BIT			BIT(0)
 
@@ -271,19 +279,6 @@ enum {
 	HVDCP_PULSE_COUNT_MAX_QC2_9V = 0x40,
 	HVDCP_PULSE_COUNT_MAX_QC2_12V = 0x80,
 	HVDCP_PULSE_COUNT_MAX_QC2_INVALID = 0xC0
-};
-
-#define USBIN_ADAPTER_ALLOW_CFG_REG		(USBIN_BASE + 0x60)
-enum {
-	USBIN_ADAPTER_ALLOW_5V		= 0,
-	USBIN_ADAPTER_ALLOW_9V		= 2,
-	USBIN_ADAPTER_ALLOW_5V_OR_9V	= 3,
-	USBIN_ADAPTER_ALLOW_12V		= 4,
-	USBIN_ADAPTER_ALLOW_5V_OR_12V	= 5,
-	USBIN_ADAPTER_ALLOW_9V_TO_12V	= 6,
-	USBIN_ADAPTER_ALLOW_5V_OR_9V_TO_12V = 7,
-	USBIN_ADAPTER_ALLOW_5V_TO_9V	= 8,
-	USBIN_ADAPTER_ALLOW_5V_TO_12V	= 12,
 };
 
 #define USBIN_OPTIONS_1_CFG_REG			(USBIN_BASE + 0x62)
@@ -322,6 +317,10 @@ enum {
 
 #define USBIN_5V_AICL_THRESHOLD_REG		(USBIN_BASE + 0x81)
 #define USBIN_CONT_AICL_THRESHOLD_REG		(USBIN_BASE + 0x84)
+
+#define TYPE_C_CFG_REG                         (USBIN_BASE + 0x58)
+#define APSD_START_ON_CC_BIT                   BIT(7)
+
 /********************************
  *  DCIN Peripheral Registers   *
  ********************************/
@@ -332,6 +331,12 @@ enum {
 #define DCIN_CMD_IL_REG				(DCIN_BASE + 0x40)
 #define DCIN_SUSPEND_BIT			BIT(0)
 #define DCIN_EN_OVERRIDE_BIT			BIT(1)
+#define DCIN_EN_BIT					BIT(2)
+
+#define DCIN_CMD_PULLDOWN_REG		(DCIN_BASE + 0x45)
+#define DCIN_PULLDOWN_EN_BIT		BIT(0)
+#define DCIN_MID_PULLDOWN_BIT		BIT(1)
+
 #define DCIN_EN_MASK				GENMASK(2, 1)
 
 #define DCIN_CMD_PON_REG			(DCIN_BASE + 0x45)
@@ -345,11 +350,17 @@ enum {
  *  TYPEC Peripheral Registers  *
  ********************************/
 #define TYPE_C_SNK_STATUS_REG			(TYPEC_BASE + 0x06)
-#define DETECTED_SRC_TYPE_MASK			GENMASK(3, 0)
+#define DETECTED_SRC_TYPE_MASK			GENMASK(6, 0)
+#define SNK_DAM_500MA_BIT			BIT(6)
+#define SNK_DAM_1500MA_BIT			BIT(5)
+#define SNK_DAM_3000MA_BIT			BIT(4)
 #define SNK_RP_STD_BIT				BIT(3)
 #define SNK_RP_1P5_BIT				BIT(2)
 #define SNK_RP_3P0_BIT				BIT(1)
 #define SNK_RP_SHORT_BIT			BIT(0)
+
+#define TYPE_C_SNK_DEBUG_ACC_STATUS_REG			(TYPEC_BASE + 0x07)
+#define SNK_DEBUG_ACC_RPSTD_PRSTD_BIT			BIT(0)
 
 #define TYPE_C_SRC_STATUS_REG			(TYPEC_BASE + 0x08)
 #define DETECTED_SNK_TYPE_MASK			GENMASK(4, 0)
@@ -401,6 +412,10 @@ enum {
 #define TYPEC_CCOUT_BUFFER_EN_BIT		BIT(2)
 #define TYPEC_CCOUT_VALUE_BIT			BIT(1)
 #define TYPEC_CCOUT_SRC_BIT			BIT(0)
+
+#define TYPE_C_DEBUG_ACC_SNK_CFG		(TYPEC_BASE + 0x4A)
+#define TYPEC_DEBUG_ACC_SNK_SEL_ICL		BIT(2)
+#define TYPEC_DEBUG_ACC_SNK_DIS_AICL		BIT(3)
 
 #define DEBUG_ACCESS_SRC_CFG_REG		(TYPEC_BASE + 0x4C)
 #define EN_UNORIENTED_DEBUG_ACCESS_SRC_BIT	BIT(0)
@@ -517,6 +532,7 @@ enum {
 #define WATCHDOG_TRIGGER_AFP_EN_BIT		BIT(7)
 #define BARK_WDOG_INT_EN_BIT			BIT(6)
 #define WDOG_TIMER_EN_ON_PLUGIN_BIT		BIT(1)
+#define WDOG_TIMER_EN_BIT			BIT(0)
 
 #define SNARL_BARK_BITE_WD_CFG_REG		(MISC_BASE + 0x53)
 #define BITE_WDOG_DISABLE_CHARGING_CFG_BIT	BIT(7)

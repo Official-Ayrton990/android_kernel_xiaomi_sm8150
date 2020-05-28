@@ -1,4 +1,4 @@
-/* Copyright (c) 2014-2019, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2014-2020, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -688,41 +688,6 @@ int ipa3_copy_ul_filter_rule_to_ipa(struct ipa_install_fltr_rule_req_msg_v01
 				.is_xlat_rule = 1;
 				IPAWANDBG("Rule %d is xlat rule\n",
 					rule_req->xlat_filter_indices_list[i]);
-			}
-		}
-	}
-
-	if (rule_req->ul_firewall_indices_list_valid) {
-		IPAWANDBG("Receive ul_firewall_indices_list_len = (%d)",
-			rule_req->ul_firewall_indices_list_len);
-
-		if (rule_req->ul_firewall_indices_list_len >
-			rmnet_ipa3_ctx->num_q6_rules) {
-			IPAWANERR("UL rule indices are not valid: (%d/%d)\n",
-					rule_req->xlat_filter_indices_list_len,
-					rmnet_ipa3_ctx->num_q6_rules);
-			goto failure;
-		}
-
-		ipa3_qmi_ctx->ul_firewall_indices_list_valid = 1;
-		ipa3_qmi_ctx->ul_firewall_indices_list_len =
-			rule_req->ul_firewall_indices_list_len;
-
-		for (i = 0; i < rule_req->ul_firewall_indices_list_len; i++) {
-			ipa3_qmi_ctx->ul_firewall_indices_list[i] =
-				rule_req->ul_firewall_indices_list[i];
-		}
-
-		for (i = 0; i < rule_req->ul_firewall_indices_list_len; i++) {
-			if (rule_req->ul_firewall_indices_list[i]
-				>= rmnet_ipa3_ctx->num_q6_rules) {
-				IPAWANERR("UL rule idx is wrong: %d\n",
-					rule_req->ul_firewall_indices_list[i]);
-				goto failure;
-			} else {
-				ipa3_qmi_ctx->q6_ul_filter_rule
-				[rule_req->ul_firewall_indices_list[i]]
-				.replicate_needed = 1;
 			}
 		}
 	}
@@ -1641,6 +1606,8 @@ static int handle3_egress_format(struct net_device *dev,
 			rc = ipa3_qmi_set_aggr_info(DATA_AGGR_TYPE_QMAP_V01);
 		}
 		rmnet_ipa3_ctx->ipa_mhi_aggr_formet_set = true;
+		/* register Q6 indication */
+		rc = ipa3_qmi_req_ind();
 		return rc;
 	}
 
@@ -2123,7 +2090,7 @@ static void ipa3_wwan_setup(struct net_device *dev)
 	dev->flags &= ~(IFF_BROADCAST | IFF_MULTICAST);
 	dev->needed_headroom = HEADROOM_FOR_QMAP;
 	dev->needed_tailroom = TAILROOM;
-	dev->watchdog_timeo = 1000;
+	dev->watchdog_timeo = 5000;
 }
 
 /* IPA_RM related functions start*/
@@ -2232,7 +2199,6 @@ static int rmnet_ipa_send_coalesce_notification(uint8_t qmap_id,
 
 int ipa3_wwan_set_modem_state(struct wan_ioctl_notify_wan_state *state)
 {
-	uint32_t bw_mbps = 0;
 	int ret = 0;
 
 	if (!state)
@@ -2241,29 +2207,11 @@ int ipa3_wwan_set_modem_state(struct wan_ioctl_notify_wan_state *state)
 	if (!ipa_pm_is_used())
 		return 0;
 
-	if (state->up) {
-		if (rmnet_ipa3_ctx->ipa_config_is_apq) {
-			bw_mbps = 5200;
-			ret = ipa3_vote_for_bus_bw(&bw_mbps);
-			if (ret) {
-				IPAERR("Failed to vote for bus BW (%u)\n",
-							bw_mbps);
-				return ret;
-			}
-		}
+	if (state->up)
 		ret = ipa_pm_activate_sync(rmnet_ipa3_ctx->q6_teth_pm_hdl);
-	} else {
-		if (rmnet_ipa3_ctx->ipa_config_is_apq) {
-			bw_mbps = 0;
-			ret = ipa3_vote_for_bus_bw(&bw_mbps);
-			if (ret) {
-				IPAERR("Failed to vote for bus BW (%u)\n",
-							bw_mbps);
-				return ret;
-			}
-		}
+	else
 		ret = ipa_pm_deactivate_sync(rmnet_ipa3_ctx->q6_teth_pm_hdl);
-	}
+
 	return ret;
 }
 

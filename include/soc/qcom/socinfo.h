@@ -103,6 +103,10 @@
 	of_flat_dt_is_compatible(of_get_flat_dt_root(), "qcom,qcs410")
 #define early_machine_is_atoll()	\
 	of_flat_dt_is_compatible(of_get_flat_dt_root(), "qcom,atoll")
+#define early_machine_is_atollp()	\
+	of_flat_dt_is_compatible(of_get_flat_dt_root(), "qcom,atollp")
+#define early_machine_is_atoll_ab()	\
+	of_flat_dt_is_compatible(of_get_flat_dt_root(), "qcom,atoll-ab")
 #else
 #define of_board_is_sim()		0
 #define of_board_is_rumi()		0
@@ -144,6 +148,7 @@
 #define early_machine_is_qcs610()       0
 #define early_machine_is_qcs410()       0
 #define early_machine_is_atoll()	0
+#define early_machine_is_atollp()	0
 #endif
 
 #define PLATFORM_SUBTYPE_MDM	1
@@ -187,6 +192,8 @@ enum msm_cpu {
 	MSM_CPU_QCS610,
 	MSM_CPU_QCS410,
 	MSM_CPU_ATOLL,
+	MSM_CPU_ATOLLP,
+	MSM_CPU_ATOLL_AB,
 };
 
 struct msm_soc_info {
@@ -210,6 +217,11 @@ enum pmic_model {
 	PMIC_MODEL_PM8917	= 25,
 	PMIC_MODEL_UNKNOWN	= 0xFFFFFFFF
 };
+
+#define HARDWARE_PLATFORM_UNKNOWN 0
+#define HARDWARE_PLATFORM_CEPHEUS 1
+
+uint32_t get_hw_version_platform(void);
 
 enum msm_cpu socinfo_get_msm_cpu(void);
 uint32_t socinfo_get_id(void);

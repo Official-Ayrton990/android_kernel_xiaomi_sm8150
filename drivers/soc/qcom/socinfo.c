@@ -70,6 +70,7 @@ enum {
 	HW_PLATFORM_HDK = 31,
 	HW_PLATFORM_IOT = 32,
 	HW_PLATFORM_IDP = 34,
+       HW_PLATFORM_F1  = 37,
 	HW_PLATFORM_INVALID
 };
 
@@ -93,7 +94,8 @@ const char *hw_platform[] = {
 	[HW_PLATFORM_ADP] = "ADP",
 	[HW_PLATFORM_HDK] = "HDK",
 	[HW_PLATFORM_IOT] = "IOT",
-	[HW_PLATFORM_IDP] = "IDP"
+	[HW_PLATFORM_IDP] = "IDP",
+	[HW_PLATFORM_F1]  = "CEPHEUS",
 };
 
 enum {
@@ -424,6 +426,12 @@ static struct msm_soc_info cpu_of_id[] = {
 
 	/* atoll ID */
 	[407] = {MSM_CPU_ATOLL, "ATOLL"},
+
+	/* atollp ID */
+	[424] = {MSM_CPU_ATOLLP, "ATOLLP"},
+
+	/* atollab ID */
+	[443] = {MSM_CPU_ATOLL_AB, "ATOLL-AB"},
 
 	/* Uninitialized IDs are not known to run Linux.
 	 * MSM_CPU_UNKNOWN is set to 0 to ensure these IDs are
@@ -1409,6 +1417,14 @@ static void * __init setup_dummy_socinfo(void)
 		dummy_socinfo.id = 407;
 		strlcpy(dummy_socinfo.build_id, "atoll - ",
 		sizeof(dummy_socinfo.build_id));
+	} else if (early_machine_is_atollp()) {
+		dummy_socinfo.id = 424;
+		strlcpy(dummy_socinfo.build_id, "atollp - ",
+		sizeof(dummy_socinfo.build_id));
+	} else if (early_machine_is_atoll_ab()) {
+		dummy_socinfo.id = 443;
+		strlcpy(dummy_socinfo.build_id, "atoll-ab - ",
+		sizeof(dummy_socinfo.build_id));
 	} else
 		strlcat(dummy_socinfo.build_id, "Dummy socinfo",
 			sizeof(dummy_socinfo.build_id));
@@ -1746,6 +1762,16 @@ static void socinfo_select_format(void)
 		socinfo_format = socinfo->v0_1.format;
 	}
 }
+
+uint32_t get_hw_version_platform(void)
+{
+	uint32_t hw_type = socinfo_get_platform_type();
+	if (hw_type == HW_PLATFORM_F1)
+		return HARDWARE_PLATFORM_CEPHEUS;
+	else
+		return HARDWARE_PLATFORM_UNKNOWN;
+}
+EXPORT_SYMBOL(get_hw_version_platform);
 
 int __init socinfo_init(void)
 {

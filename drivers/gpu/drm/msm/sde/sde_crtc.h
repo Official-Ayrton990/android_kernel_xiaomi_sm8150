@@ -420,6 +420,7 @@ struct sde_crtc_state {
 	uint64_t input_fence_timeout_ns;
 	uint32_t num_dim_layers;
 	struct sde_hw_dim_layer dim_layer[SDE_MAX_DIM_LAYERS];
+	struct sde_hw_dim_layer *fod_dim_layer;
 	uint32_t num_ds;
 	uint32_t num_ds_enabled;
 	bool ds_dirty;
@@ -512,17 +513,6 @@ static inline int sde_crtc_get_mixer_height(struct sde_crtc *sde_crtc,
 
 	return (cstate->num_ds_enabled ?
 			cstate->ds_cfg[0].lm_height : mode->vdisplay);
-}
-
-/**
- * sde_crtc_get_num_datapath - get the number of datapath active
- * @crtc: Pointer to drm crtc object
- */
-static inline int sde_crtc_get_num_datapath(struct drm_crtc *crtc)
-{
-	struct sde_crtc *sde_crtc = to_sde_crtc(crtc);
-
-	return sde_crtc ? sde_crtc->num_mixers : 0;
 }
 
 /**
@@ -860,5 +850,14 @@ void sde_crtc_misr_setup(struct drm_crtc *crtc, bool enable, u32 frame_count);
 int sde_crtc_calc_vpadding_param(struct drm_crtc_state *state,
 		uint32_t crtc_y, uint32_t crtc_h, uint32_t *padding_y,
 		uint32_t *padding_start, uint32_t *padding_height);
+
+/**
+ * sde_crtc_get_num_datapath - get the number of datapath active
+ *				of primary connector
+ * @crtc: Pointer to DRM crtc object
+ * @connector: Pointer to DRM connector object of WB in CWB case
+ */
+int sde_crtc_get_num_datapath(struct drm_crtc *crtc,
+		struct drm_connector *connector);
 
 #endif /* _SDE_CRTC_H_ */

@@ -288,6 +288,10 @@ enum dsi_cmd_set_type {
 	DSI_CMD_SET_POST_TIMING_SWITCH,
 	DSI_CMD_SET_QSYNC_ON,
 	DSI_CMD_SET_QSYNC_OFF,
+	DSI_CMD_SET_DOZE_HBM,
+	DSI_CMD_SET_DOZE_LBM,
+	DSI_CMD_SET_DISP_HBM_FOD_ON,
+	DSI_CMD_SET_DISP_HBM_FOD_OFF,
 	DSI_CMD_SET_MAX
 };
 
@@ -459,6 +463,7 @@ struct dsi_split_link_config {
  * @ext_bridge_map:      External bridge config reg needs to match with the port
  *                       reg config.
  * @force_hs_clk_lane:   Send continuous clock to the panel.
+ * @phy_type:            DPHY/CPHY is enabled for this panel.
  * @dsi_split_link_config:  Split Link Configuration.
  */
 struct dsi_host_common_cfg {
@@ -481,6 +486,7 @@ struct dsi_host_common_cfg {
 	u32 ext_bridge_num;
 	u32 ext_bridge_map[MAX_DSI_CTRLS_PER_DISPLAY];
 	bool force_hs_clk_lane;
+	enum dsi_phy_type phy_type;
 	struct dsi_split_link_config split_link;
 };
 

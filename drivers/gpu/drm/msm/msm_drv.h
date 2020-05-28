@@ -103,6 +103,7 @@ enum msm_mdp_plane_property {
 
 	/* range properties */
 	PLANE_PROP_ZPOS = PLANE_PROP_BLOBCOUNT,
+	PLANE_PROP_FOD,
 	PLANE_PROP_ALPHA,
 	PLANE_PROP_COLOR_FILL,
 	PLANE_PROP_H_DECIMATE,
@@ -531,6 +532,14 @@ struct msm_roi_list {
 struct msm_display_kickoff_params {
 	struct msm_roi_list *rois;
 	struct drm_msm_ext_hdr_metadata *hdr_meta;
+};
+
+/**
+ * struct - msm_display_conn_params - info of dpu display features
+ * @qsync_mode: Qsync mode, where 0: disabled 1: continuous mode
+ * @qsync_update: Qsync settings were changed/updated
+ */
+struct msm_display_conn_params {
 	uint32_t qsync_mode;
 	bool qsync_update;
 };
@@ -978,4 +987,7 @@ static inline unsigned long timeout_to_jiffies(const ktime_t *timeout)
 	return remaining_jiffies;
 }
 
+int msm_get_mixer_count(struct msm_drm_private *priv,
+		const struct drm_display_mode *mode,
+		u32 max_mixer_width, u32 *num_lm);
 #endif /* __MSM_DRV_H__ */

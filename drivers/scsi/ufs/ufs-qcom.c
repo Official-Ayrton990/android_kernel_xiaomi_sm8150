@@ -35,8 +35,6 @@
 #define MAX_PROP_SIZE		   32
 #define VDDP_REF_CLK_MIN_UV        1200000
 #define VDDP_REF_CLK_MAX_UV        1200000
-/* TODO: further tuning for this parameter may be required */
-#define UFS_QCOM_PM_QOS_UNVOTE_TIMEOUT_US	(10000) /* microseconds */
 
 #define UFS_QCOM_DEFAULT_DBG_PRINT_EN	\
 	(UFS_QCOM_DBG_PRINT_REGS_EN | UFS_QCOM_DBG_PRINT_TEST_BUS_EN)
@@ -1018,12 +1016,27 @@ static int ufs_qcom_crypto_engine_get_status(struct ufs_hba *hba, u32 *status)
 
 	return ufs_qcom_ice_get_status(host, status);
 }
+
+static int ufs_qcom_crypto_get_pending_req_status(struct ufs_hba *hba)
+{
+	struct ufs_qcom_host *host = ufshcd_get_variant(hba);
+	int err = 0;
+
+	if (!host->ice.pdev)
+		goto out;
+
+	err = ufs_qcom_is_ice_busy(host);
+out:
+	return err;
+}
+
 #else /* !CONFIG_SCSI_UFS_QCOM_ICE */
 #define ufs_qcom_crypto_req_setup		NULL
 #define ufs_qcom_crytpo_engine_cfg_start	NULL
 #define ufs_qcom_crytpo_engine_cfg_end		NULL
 #define ufs_qcom_crytpo_engine_reset		NULL
 #define ufs_qcom_crypto_engine_get_status	NULL
+#define ufs_qcom_crypto_get_pending_req_status	NULL
 #endif /* CONFIG_SCSI_UFS_QCOM_ICE */
 
 struct ufs_qcom_dev_params {
@@ -1372,9 +1385,9 @@ static void ufs_qcom_dev_ref_clk_ctrl(struct ufs_qcom_host *host, bool enable)
 		if (enable) {
 			if (host->hba->dev_info.quirks &
 			    UFS_DEVICE_QUIRK_WAIT_AFTER_REF_CLK_UNGATE)
-				usleep_range(50, 60);
+				usleep_range(960, 970);
 			else
-				udelay(1);
+				usleep_range(200, 210);
 		}
 
 		host->is_dev_ref_clk_enabled = enable;
@@ -1392,6 +1405,9 @@ static int ufs_qcom_pwr_change_notify(struct ufs_hba *hba,
 	struct ufs_qcom_dev_params ufs_qcom_cap;
 	int ret = 0;
 	int res = 0;
+
+	hba->ufs_stats.clk_hold.ctx = PWR_CHG_NOTIFY;
+	ufshcd_hold(hba, false);
 
 	if (!dev_req_params) {
 		pr_err("%s: incoming dev_req_params is NULL\n", __func__);
@@ -1483,6 +1499,8 @@ static int ufs_qcom_pwr_change_notify(struct ufs_hba *hba,
 		break;
 	}
 out:
+	hba->ufs_stats.clk_rel.ctx = PWR_CHG_NOTIFY;
+	ufshcd_release(hba, false);
 	return ret;
 }
 
@@ -1770,8 +1788,7 @@ static void ufs_qcom_pm_qos_unvote_work(struct work_struct *work)
 	group->state = PM_QOS_UNVOTED;
 	spin_unlock_irqrestore(host->hba->host->host_lock, flags);
 
-	pm_qos_update_request_timeout(&group->req,
-		group->latency_us, UFS_QCOM_PM_QOS_UNVOTE_TIMEOUT_US);
+	pm_qos_update_request(&group->req, PM_QOS_DEFAULT_VALUE);
 }
 
 static ssize_t ufs_qcom_pm_qos_enable_show(struct device *dev,
@@ -1939,9 +1956,8 @@ static int ufs_qcom_pm_qos_init(struct ufs_qcom_host *host)
 		if (ret)
 			goto free_groups;
 
-		host->pm_qos.groups[i].req.type = PM_QOS_REQ_AFFINE_CORES;
-		host->pm_qos.groups[i].req.cpus_affine =
-			host->pm_qos.groups[i].mask;
+		host->pm_qos.groups[i].req.type = PM_QOS_REQ_AFFINE_IRQ;
+		host->pm_qos.groups[i].req.irq = host->hba->irq;
 		host->pm_qos.groups[i].state = PM_QOS_UNVOTED;
 		host->pm_qos.groups[i].active_reqs = 0;
 		host->pm_qos.groups[i].host = host;
@@ -2807,6 +2823,7 @@ static struct ufs_hba_crypto_variant_ops ufs_hba_crypto_variant_ops = {
 	.crypto_engine_cfg_end	= ufs_qcom_crytpo_engine_cfg_end,
 	.crypto_engine_reset	  = ufs_qcom_crytpo_engine_reset,
 	.crypto_engine_get_status = ufs_qcom_crypto_engine_get_status,
+	.crypto_get_req_status = ufs_qcom_crypto_get_pending_req_status,
 };
 
 static struct ufs_hba_pm_qos_variant_ops ufs_hba_pm_qos_variant_ops = {

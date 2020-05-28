@@ -78,6 +78,7 @@ struct dp_display {
 	u32 max_pclk_khz;
 	u32 max_hdisplay;
 	u32 max_vdisplay;
+	u32 no_mst_encoder;
 	void *dp_mst_prv_info;
 
 	int (*enable)(struct dp_display *dp_display, void *panel);
@@ -129,6 +130,11 @@ struct dp_display {
 			struct drm_connector *connector, char *pps_cmd);
 	void (*wakeup_phy_layer)(struct dp_display *dp_display,
 			bool wakeup);
+	int (*get_display_type)(struct dp_display *dp_display,
+			const char **display_type);
+	int (*mst_get_fixed_topology_display_type)(
+			struct dp_display *dp_display, u32 strm_id,
+			const char **display_type);
 };
 
 int dp_display_get_num_of_displays(void);

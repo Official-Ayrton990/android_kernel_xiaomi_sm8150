@@ -131,6 +131,7 @@ static struct icnss_vreg_info icnss_vreg_info[] = {
 	{NULL, "vdd-cx-mx", 752000, 752000, 0, 0, false},
 	{NULL, "vdd-1.8-xo", 1800000, 1800000, 0, 0, false},
 	{NULL, "vdd-1.3-rfa", 1304000, 1304000, 0, 0, false},
+	{NULL, "vdd-3.3-ch1", 3312000, 3312000, 0, 0, false},
 	{NULL, "vdd-3.3-ch0", 3312000, 3312000, 0, 0, false},
 };
 
@@ -3825,6 +3826,8 @@ static int icnss_probe(struct platform_device *pdev)
 			goto out_unregister_ext_modem;
 	}
 
+	device_enable_async_suspend(dev);
+
 	spin_lock_init(&priv->event_lock);
 	spin_lock_init(&priv->on_off_lock);
 	mutex_init(&priv->dev_lock);
@@ -4054,6 +4057,7 @@ static struct platform_driver icnss_driver = {
 		.pm = &icnss_pm_ops,
 		.owner = THIS_MODULE,
 		.of_match_table = icnss_dt_match,
+		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 	},
 };
 
