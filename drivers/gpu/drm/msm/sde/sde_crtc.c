@@ -77,6 +77,9 @@ struct sde_crtc_custom_events {
 			struct sde_irq_callback *irq);
 };
 
+struct drm_crtc *gcrtc;
+bool g_idleflag = true;
+
 static int sde_crtc_power_interrupt_handler(struct drm_crtc *crtc_drm,
 	bool en, struct sde_irq_callback *ad_irq);
 static int sde_crtc_idle_interrupt_handler(struct drm_crtc *crtc_drm,
@@ -120,6 +123,8 @@ static struct sde_crtc_custom_events custom_events[] = {
 /* default line padding ratio limitation */
 #define MAX_VPADDING_RATIO_M		63
 #define MAX_VPADDING_RATIO_N		15
+
+#define IDLE_TIMEOUT_DEFAULT		200
 
 int dim_layer_alpha;
 
@@ -4006,6 +4011,7 @@ static void sde_crtc_atomic_flush(struct drm_crtc *crtc,
 	struct sde_crtc_state *cstate;
 	struct sde_kms *sde_kms;
 	int idle_time = 0;
+	static int idle_time_enable = false;
 
 	if (!crtc || !crtc->dev || !crtc->dev->dev_private) {
 		SDE_ERROR("invalid crtc\n");
@@ -4044,6 +4050,14 @@ static void sde_crtc_atomic_flush(struct drm_crtc *crtc,
 	event_thread = &priv->event_thread[crtc->index];
 	idle_time = sde_crtc_get_property(cstate, CRTC_PROP_IDLE_TIMEOUT);
 
+	if (!idle_time && idle_time_enable) {
+		idle_time = IDLE_TIMEOUT_DEFAULT;
+		idle_time_enable = false;
+	}
+	else {
+		idle_time_enable = true;
+	}
+
 	/*
 	 * If no mixers has been allocated in sde_crtc_atomic_check(),
 	 * it means we are trying to flush a CRTC whose state is disabled:
@@ -4068,8 +4082,8 @@ static void sde_crtc_atomic_flush(struct drm_crtc *crtc,
 	_sde_crtc_wait_for_fences(crtc);
 
 	/* schedule the idle notify delayed work */
-	if (sde_encoder_check_curr_mode(sde_crtc->mixers[0].encoder,
-				MSM_DISPLAY_VIDEO_MODE) && idle_time) {
+	if (idle_time && g_idleflag && sde_encoder_check_mode(sde_crtc->mixers[0].encoder,
+						MSM_DISPLAY_CAP_VID_MODE)) {
 		kthread_queue_delayed_work(&event_thread->worker,
 					&sde_crtc->idle_notify_work,
 					msecs_to_jiffies(idle_time));
@@ -4100,6 +4114,8 @@ static void sde_crtc_atomic_flush(struct drm_crtc *crtc,
 			sde_plane_set_error(plane, true);
 		sde_plane_flush(plane);
 	}
+
+	gcrtc = crtc;
 
 	/* Kickoff will be scheduled by outer layer */
 	SDE_ATRACE_END("sde_crtc_atomic_flush");
