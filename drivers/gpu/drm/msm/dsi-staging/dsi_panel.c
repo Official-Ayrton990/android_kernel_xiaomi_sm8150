@@ -3758,6 +3758,7 @@ static int dsi_panel_parse_mi_config(struct dsi_panel *panel,
 
 	dsi_panel_parse_elvss_dimming_config(panel);
 
+	panel->hbm_enabled = false;
 	panel->fod_hbm_enabled = false;
 	panel->fod_dimlayer_hbm_enabled = false;
 	panel->skip_dimmingon = STATE_NONE;
@@ -5126,6 +5127,7 @@ static int panel_disp_param_send_lock(struct dsi_panel *panel, int param)
 		pr_info("hbm on\n");
 		rc = dsi_panel_tx_cmd_set(panel, DSI_CMD_SET_DISP_HBM_ON);
 		panel->skip_dimmingon = STATE_DIM_BLOCK;
+		panel->hbm_enabled = true;
 		break;
 	case DISPPARAM_HBM_FOD_ON:
 		pr_info("hbm fod on\n");
@@ -5208,6 +5210,7 @@ static int panel_disp_param_send_lock(struct dsi_panel *panel, int param)
 		pr_info("hbm off\n");
 		rc = dsi_panel_tx_cmd_set(panel, DSI_CMD_SET_DISP_HBM_OFF);
 		panel->skip_dimmingon = STATE_DIM_RESTORE;
+		panel->hbm_enabled = false;
 		break;
 	default:
 		break;
@@ -5524,6 +5527,7 @@ int dsi_panel_enable(struct dsi_panel *panel)
 	else
 		panel->panel_initialized = true;
 
+	panel->hbm_enabled = false;
 	panel->fod_hbm_enabled = false;
 	panel->fod_dimlayer_hbm_enabled = false;
 	panel->in_aod = false;
@@ -5623,6 +5627,7 @@ int dsi_panel_disable(struct dsi_panel *panel)
 
 	panel->panel_initialized = false;
 	panel->skip_dimmingon = STATE_NONE;
+	panel->hbm_enabled = false;
 	panel->fod_hbm_enabled = false;
 	panel->fod_dimlayer_hbm_enabled = false;
 	panel->in_aod = false;
