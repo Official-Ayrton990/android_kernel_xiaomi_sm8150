@@ -1,4 +1,4 @@
-/* Copyright (c) 2002,2007-2019, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2002,2007-2020, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -58,7 +58,7 @@ MODULE_PARM_DESC(swfdetect, "Enable soft fault detection");
 #define DRIVER_VERSION_MAJOR   3
 #define DRIVER_VERSION_MINOR   1
 
-#define KGSL_LOG_LEVEL_DEFAULT 3
+#define KGSL_LOG_LEVEL_DEFAULT 0
 
 static unsigned int counter_delta(struct kgsl_device *device,
 	unsigned int reg, unsigned int *counter);
