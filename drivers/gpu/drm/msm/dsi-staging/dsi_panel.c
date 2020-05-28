@@ -4966,6 +4966,7 @@ int dsi_panel_send_roi_dcs(struct dsi_panel *panel, int ctrl_idx,
 	return rc;
 }
 
+extern bool g_idleflag;
 static int panel_disp_param_send_lock(struct dsi_panel *panel, int param)
 {
 	int rc = 0;
@@ -5376,6 +5377,14 @@ static int panel_disp_param_send_lock(struct dsi_panel *panel, int param)
 		((u8 *)panel->cur_mode->priv_info->cmd_sets[DSI_CMD_SET_DISP_ELVSS_DIMMING_OFF].cmds[2].msg.tx_buf)[1]
 						= (panel->elvss_dimming_cmds.rbuf[0]) & 0x7F;
 		rc = dsi_panel_tx_cmd_set(panel, DSI_CMD_SET_DISP_ELVSS_DIMMING_OFF);
+		break;
+	case DISPPARAM_IDLE_ON:
+		pr_info("idle on\n");
+		g_idleflag = true;
+		break;
+	case DISPPARAM_IDLE_OFF:
+		pr_info("idle off\n");
+		g_idleflag = false;
 		break;
 	default:
 		break;
