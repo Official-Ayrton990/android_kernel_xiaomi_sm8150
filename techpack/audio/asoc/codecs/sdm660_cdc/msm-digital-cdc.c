@@ -108,7 +108,7 @@ static int msm_digcdc_clock_control(bool flag)
 			}
 			pr_debug("enabled digital codec core clk\n");
 			atomic_set(&pdata->int_mclk0_enabled, true);
-			queue_delayed_work(system_power_efficient_wq,&pdata->disable_int_mclk0_work,
+			queue_delayed_work(system_power_efficient_wq, &pdata->disable_int_mclk0_work,
 					      50);
 		}
 	} else {
@@ -974,7 +974,7 @@ static int msm_dig_cdc_codec_enable_dec(struct snd_soc_dapm_widget *w,
 		/* enable HPF */
 		snd_soc_update_bits(codec, tx_mux_ctl_reg, 0x08, 0x00);
 
-		queue_delayed_work(system_power_efficient_wq,
+		queue_delayed_work(system_power_efficient_wq, 
 			    &msm_dig_cdc->tx_mute_dwork[decimator - 1].dwork,
 			    msecs_to_jiffies(tx_unmute_delay));
 		if (tx_hpf_work[decimator - 1].tx_hpf_cut_of_freq !=

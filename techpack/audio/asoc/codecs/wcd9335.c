@@ -5761,7 +5761,7 @@ static int tasha_codec_enable_dec(struct snd_soc_dapm_widget *w,
 			snd_soc_write(codec, WCD9335_MBHC_ZDET_RAMP_CTL, 0x83);
 			snd_soc_write(codec, WCD9335_MBHC_ZDET_RAMP_CTL, 0x03);
 		}
-		/* schedule work queue to Remove Mute */
+		/* queue delayed work queue efficiently in order to Remove Mute */
 		queue_delayed_work(system_power_efficient_wq, &tasha->tx_mute_dwork[decimator].dwork,
 				      msecs_to_jiffies(tx_unmute_delay));
 		if (tasha->tx_hpf_work[decimator].hpf_cut_off_freq !=
@@ -14328,7 +14328,7 @@ static int tasha_probe(struct platform_device *pdev)
 	}
 	/* Update codec register default values */
 	tasha_update_reg_defaults(tasha);
-	schedule_work(&tasha->tasha_add_child_devices_work);
+	queue_delayed_work(system_power_efficient_wq, &tasha->tasha_add_child_devices_work);
 	tasha_get_codec_ver(tasha);
 	ret = snd_event_client_register(pdev->dev.parent, &tasha_ssr_ops, NULL);
 	if (!ret) {

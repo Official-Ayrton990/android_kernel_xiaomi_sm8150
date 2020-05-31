@@ -41,7 +41,7 @@
 
 static struct apr_q6 q6;
 static struct apr_client client[APR_DEST_MAX][APR_CLIENT_MAX];
-static void *apr_pkt_ctx;
+static void __maybe_unused *apr_pkt_ctx;
 static wait_queue_head_t modem_wait;
 static bool is_modem_up;
 static char *subsys_name = NULL;
@@ -89,12 +89,7 @@ static const struct file_operations apr_debug_ops = {
 };
 #endif
 
-#define APR_PKT_INFO(x...) \
-do { \
-	if (apr_pkt_ctx) \
-		ipc_log_string(apr_pkt_ctx, "<APR>: "x); \
-} while (0)
-
+#define APR_PKT_INFO(x...) ((void)0)
 
 struct apr_svc_table {
 	char name[64];
@@ -733,7 +728,7 @@ void apr_cb_func(void *buf, int len, void *priv)
 
 	if (unlikely(apr_cf_debug)) {
 		if (hdr->opcode == APR_BASIC_RSP_RESULT && data.payload) {
-			uint32_t *ptr = data.payload;
+			uint32_t __maybe_unused *ptr = data.payload;
 
 			APR_PKT_INFO(
 			"Rx: src_addr[0x%X] dest_addr[0x%X] opcode[0x%X] token[0x%X] rc[0x%X]",
@@ -1124,9 +1119,9 @@ static int __init apr_debug_init(void)
 }
 #else
 static int __init apr_debug_init(void)
-(
+{
 	return 0;
-)
+}
 #endif
 
 static void apr_cleanup(void)
@@ -1147,7 +1142,9 @@ static void apr_cleanup(void)
 				mutex_destroy(&client[i][j].svc[k].m_lock);
 		}
 	}
+#ifdef CONFIG_DEBUG_FS
 	debugfs_remove(debugfs_apr_debug);
+#endif
 }
 
 static int apr_probe(struct platform_device *pdev)

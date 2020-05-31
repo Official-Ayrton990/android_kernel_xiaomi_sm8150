@@ -1978,8 +1978,8 @@ struct wcd_cpe_core *wcd_cpe_init(const char *img_fname,
 	}
 
 	card = codec->component.card->snd_card;
-	snprintf(proc_name, (sizeof("cpe") + sizeof("_state") +
-		 sizeof(id) - 2), "%s%d%s", cpe_name, id, state_name);
+	snprintf(proc_name, sizeof(proc_name),
+		 "%s%d%s", cpe_name, id, state_name);
 	entry = snd_info_create_card_entry(card, proc_name,
 					   card->proc_root);
 	if (entry) {
@@ -2250,8 +2250,7 @@ static int fill_cmi_header(struct cmi_hdr *hdr,
 			   u16 opcode, bool obm_flag)
 {
 	/* sanitize the data */
-	if (hdr == NULL ||
-	    !IS_VALID_SESSION_ID(session_id) ||
+	if (!IS_VALID_SESSION_ID(session_id) ||
 	    !IS_VALID_SERVICE_ID(service_id) ||
 	    !IS_VALID_PLD_SIZE(payload_size)) {
 		pr_err("Invalid header creation request\n");
@@ -3547,7 +3546,7 @@ static int wcd_cpe_lsm_lab_control(
 {
 	struct wcd_cpe_core *core = core_handle;
 	int ret = 0, pld_size = CPE_PARAM_SIZE_LSM_LAB_CONTROL;
-	struct cpe_lsm_control_lab cpe_lab_enable;
+	struct cpe_lsm_control_lab cpe_lab_enable = {{0}};
 	struct cpe_lsm_lab_enable *lab_enable = &cpe_lab_enable.lab_enable;
 	struct cpe_param_data *param_d = &lab_enable->param;
 	struct cpe_lsm_ids ids;
