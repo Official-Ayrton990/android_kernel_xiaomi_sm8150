@@ -686,48 +686,6 @@ error:
 	return rc;
 }
 
-static u32 dsi_panel_get_backlight(struct dsi_panel *panel)
-{
-	u32 bl_level;
-
-	if (panel->doze_enabled && panel->doze_mode == DSI_DOZE_HBM)
-		bl_level = panel->bl_config.bl_doze_hbm;
-	else if (panel->doze_enabled && panel->doze_mode == DSI_DOZE_LPM)
-		bl_level = panel->bl_config.bl_doze_lpm;
-	else if (!panel->doze_enabled)
-		bl_level = panel->bl_config.bl_level;
-
-	return bl_level;
-}
-
-static u32 interpolate(uint32_t x, uint32_t xa, uint32_t xb, uint32_t ya, uint32_t yb)
-{
-	return ya - (ya - yb) * (x - xa) / (xb - xa);;
-}
-
-u32 dsi_panel_get_fod_dim_alpha(struct dsi_panel *panel)
-{
-	u32 brightness = dsi_panel_get_backlight(panel);
-	int i;
-
-	if (!panel->fod_dim_lut)
-		return 0;
-
-	for (i = 0; i < panel->fod_dim_lut_count; i++)
-		if (panel->fod_dim_lut[i].brightness >= brightness)
-			break;
-
-	if (i == 0)
-		return panel->fod_dim_lut[i].alpha;
-
-	if (i == panel->fod_dim_lut_count)
-		return panel->fod_dim_lut[i - 1].alpha;
-
-	return interpolate(brightness,
-			panel->fod_dim_lut[i - 1].brightness, panel->fod_dim_lut[i].brightness,
-			panel->fod_dim_lut[i - 1].alpha, panel->fod_dim_lut[i].alpha);
-}
-
 int dsi_panel_update_doze(struct dsi_panel *panel) {
 	int rc = 0;
 
