@@ -1644,7 +1644,7 @@ static struct snd_soc_codec_driver soc_codec_dev_cs35l41 = {
 	.ignore_pmdown_time = false,
 	.idle_bias_off = true,
 };
-
+/*
 int spk_id_get(struct device_node *np)
 {
 	int id;
@@ -1672,7 +1672,7 @@ int spk_id_get(struct device_node *np)
 	}
 	return id;
 }
-
+nuke down this duplicated definition*/
 static int cs35l41_handle_of_data(struct device *dev,
 				struct cs35l41_platform_data *pdata)
 {
