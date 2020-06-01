@@ -49,6 +49,23 @@ struct task_struct *kthread_create_on_cpu(int (*threadfn)(void *data),
 	__k;								   \
 })
 
+/**
+ * kthread_run_perf_critical - create and wake a performance-critical thread.
+ *
+ * Same as kthread_run(), but with the kthread bound to performance CPUs.
+ */
+#define kthread_run_perf_critical(threadfn, data, namefmt, ...)		   \
+({									   \
+	struct task_struct *__k						   \
+		= kthread_create(threadfn, data, namefmt, ## __VA_ARGS__); \
+	if (!IS_ERR(__k)) {						   \
+		__k->flags |= PF_PERF_CRITICAL;				   \
+		kthread_bind_mask(__k, cpu_perf_mask);			   \
+		wake_up_process(__k);					   \
+	}								   \
+	__k;								   \
+})
+
 void free_kthread_struct(struct task_struct *k);
 void kthread_bind(struct task_struct *k, unsigned int cpu);
 void kthread_bind_mask(struct task_struct *k, const struct cpumask *mask);
@@ -179,10 +196,6 @@ kthread_create_worker(unsigned int flags, const char namefmt[], ...);
 __printf(3, 4) struct kthread_worker *
 kthread_create_worker_on_cpu(int cpu, unsigned int flags,
 			     const char namefmt[], ...);
-
-bool __kthread_queue_work(struct kthread_worker *worker,
-			  struct kthread_work *work,
-			  struct list_head *pos);
 
 bool kthread_queue_work(struct kthread_worker *worker,
 			struct kthread_work *work);
