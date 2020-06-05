@@ -268,7 +268,11 @@ cmd_gzip = (cat $(filter-out FORCE,$^) | gzip -n -f -9 > $@) || \
 
 # DTC
 # ---------------------------------------------------------------------------
+ifeq ($(CONFIG_BUILD_ARM64_EMBEDDED_DTB),y)
+DTC ?= $(objtree)/scripts/dtc-aosp/dtc-aosp
+else
 DTC ?= $(objtree)/scripts/dtc/dtc
+endif
 
 # Silence warnings
 DTC_FLAGS += -q
