@@ -8434,16 +8434,23 @@ select_task_rq_fair(struct task_struct *p, int prev_cpu, int sd_flag, int wake_f
 	rcu_read_lock();
 
 	if (sd_flag & SD_BALANCE_WAKE) {
-		record_wakee(p);
-		want_affine = !wake_wide(p, sibling_count_hint) && !wake_cap(p, cpu, prev_cpu)
-			      && cpumask_test_cpu(cpu, &p->cpus_allowed);
-	}
+		int _wake_cap = wake_cap(p, cpu, prev_cpu);
+		int _cpus_allowed = cpumask_test_cpu(cpu, &p->cpus_allowed);
 
-	rcu_read_lock();
-	sd = rcu_dereference(cpu_rq(prev_cpu)->sd);
-	if (energy_aware() && sd && !sd_overutilized(sd)) {
-		new_cpu = select_energy_cpu_brute(p, prev_cpu);
-		goto unlock;
+		if (sysctl_sched_sync_hint_enable && sync &&
+				_cpus_allowed && !_wake_cap &&
+				wake_affine_idle(cpu, prev_cpu, sync) &&
+				cpu_is_in_target_set(p, cpu)) {
+			rcu_read_unlock();
+			return cpu;
+		}
+
+		record_wakee(p);
+		want_energy = wake_energy(p, prev_cpu, sd_flag, wake_flags);
+		want_affine = !want_energy &&
+			      !wake_wide(p, sibling_count_hint) &&
+			      !_wake_cap &&
+			      _cpus_allowed;
 	}
 
 	for_each_domain(cpu, tmp) {
