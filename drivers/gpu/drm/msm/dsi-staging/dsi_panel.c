@@ -19,6 +19,7 @@
 #include <linux/of_gpio.h>
 #include <linux/pwm.h>
 #include <video/mipi_display.h>
+#include <linux/log2.h>
 
 #include "dsi_panel.h"
 #include "dsi_ctrl_hw.h"
@@ -718,7 +719,7 @@ static u32 dsi_panel_get_backlight(struct dsi_panel *panel)
 
 static u32 interpolate(uint32_t x, uint32_t xa, uint32_t xb, uint32_t ya, uint32_t yb)
 {
-	return ya - (ya - yb) * (x - xa) / (xb - xa);;
+	return ya * (x/xa)^(__ilog2_u32(yb/ya)/__ilog2_u32(xb/xa));;
 }
 
 u32 dsi_panel_get_fod_dim_alpha(struct dsi_panel *panel)
