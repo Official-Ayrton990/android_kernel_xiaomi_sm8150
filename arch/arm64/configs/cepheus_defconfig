@@ -5827,10 +5827,10 @@ CONFIG_SBITMAP=y
 #
 # Xiaomi configuration options
 #
-# CONFIG_MACH_XIAOMI is not set
-# CONFIG_MACH_XIAOMI_SM8150 is not set
+CONFIG_MACH_XIAOMI=y
+CONFIG_MACH_XIAOMI_SM8150=y
 
 #
 # Xiaomi board selection
 #
-# CONFIG_MACH_XIAOMI_CEPHEUS is not set
+CONFIG_MACH_XIAOMI_CEPHEUS=y
