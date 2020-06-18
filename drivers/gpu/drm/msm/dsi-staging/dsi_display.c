@@ -6432,13 +6432,7 @@ int dsi_display_get_modes(struct dsi_display *display,
 exit:
 	*out_modes = display->modes;
 	rc = 0;
-<<<<<<< HEAD
-#ifdef CONFIG_EXPOSURE_ADJUSTMENT
 	primary_display = display;
-#endif
-=======
-	primary_display = display;
->>>>>>> f2c7a7b5946f... drm: msm: dsi-staging: add get_main_display
 
 error:
 	if (rc)
@@ -7784,18 +7778,10 @@ int dsi_display_unprepare(struct dsi_display *display)
 	return rc;
 }
 
-<<<<<<< HEAD
-#ifdef CONFIG_EXPOSURE_ADJUSTMENT
 struct dsi_display *get_main_display(void) {
 		return primary_display;
 }
 EXPORT_SYMBOL(get_main_display);
-#endif
-=======
-struct dsi_display *get_main_display(void) {
-	return primary_display;
-}
->>>>>>> f2c7a7b5946f... drm: msm: dsi-staging: add get_main_display
 
 static int __init dsi_display_register(void)
 {
