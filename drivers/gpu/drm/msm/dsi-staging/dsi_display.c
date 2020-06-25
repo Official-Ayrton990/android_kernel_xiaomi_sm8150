@@ -1245,7 +1245,7 @@ int dsi_display_set_power(struct drm_connector *connector,
 		msm_drm_notifier_call_chain(MSM_DRM_EVENT_BLANK, &notify_data);
 		if (!rc)
 			dsi_panel_set_doze_backlight(display);
-		drm_notifier_call_chain(DRM_EVENT_BLANK, &g_notify_data);
+		msm_drm_notifier_call_chain(MSM_DRM_EVENT_BLANK, &notify_data);
 		break;
 	case SDE_MODE_DPMS_LP2:
 		msm_drm_notifier_call_chain(MSM_DRM_EARLY_EVENT_BLANK, &notify_data);
@@ -1253,7 +1253,7 @@ int dsi_display_set_power(struct drm_connector *connector,
 		msm_drm_notifier_call_chain(MSM_DRM_EVENT_BLANK, &notify_data);
 		if (!rc)
 			dsi_panel_set_doze_backlight(display);
-		drm_notifier_call_chain(DRM_EVENT_BLANK, &g_notify_data);
+		msm_drm_notifier_call_chain(MSM_DRM_EVENT_BLANK, &notify_data);
 		break;
 	case SDE_MODE_DPMS_ON:
 		if (display->panel->power_mode == SDE_MODE_DPMS_LP1 ||
@@ -1263,7 +1263,7 @@ int dsi_display_set_power(struct drm_connector *connector,
 			msm_drm_notifier_call_chain(MSM_DRM_EVENT_BLANK, &notify_data);
 		if (!rc)
 			dsi_panel_set_doze_backlight(display);
-			drm_notifier_call_chain(DRM_EVENT_BLANK, &g_notify_data);
+			msm_drm_notifier_call_chain(MSM_DRM_EVENT_BLANK, &notify_data);
 		}
 		break;
 	case SDE_MODE_DPMS_OFF:
