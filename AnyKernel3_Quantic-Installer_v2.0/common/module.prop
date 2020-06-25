@@ -1,0 +1,7 @@
+id=QK
+name= Quantic FOD service
+version= Mi9
+versionCode=1
+author=Ayrton990
+description=This module handles the FOD dim layer and some other tweaks, understand this as a blackbox
+template=1900
