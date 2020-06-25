@@ -424,6 +424,13 @@ struct snd_dec_aptx {
 	__u32 nap;
 };
 
+/** struct snd_dec_dsd - codec for DSD format
+ * @blk_size - dsd channel block size
+ */
+struct snd_dec_dsd {
+	__u32 blk_size;
+};
+
 /** struct snd_dec_pcm - codec options for PCM format
  * @num_channels: Number of channels
  * @ch_map: Channel map for the above corresponding channels
@@ -452,6 +459,7 @@ union snd_codec_options {
 	struct snd_dec_thd truehd;
 	struct snd_dec_pcm pcm_dec;
 	struct snd_dec_amrwb_plus amrwbplus;
+	struct snd_dec_dsd dsd_dec;
 };
 
 /** struct snd_codec_desc - description of codec capabilities
@@ -548,7 +556,8 @@ struct snd_codec_metadata {
 	__u32 length;
 	__u32 offset;
 	__u64 timestamp;
-	__u32 reserved[4];
+	__u32 flags;
+	__u32 reserved[3];
 };
 
 #endif
