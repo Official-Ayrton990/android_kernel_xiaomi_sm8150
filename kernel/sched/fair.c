@@ -7441,9 +7441,15 @@ static inline bool task_fits_capacity(struct task_struct *p,
 	unsigned int margin;
 
 	if (capacity_orig_of(task_cpu(p)) > capacity_orig_of(cpu))
-		margin = sched_capacity_margin_down[task_cpu(p)];
+		margin = schedtune_task_boost(p) > 0 &&
+			   p->prio <= DEFAULT_PRIO ?
+			sched_capacity_margin_down_boosted[cpu] :
+			sched_capacity_margin_down[cpu];
 	else
-		margin = sched_capacity_margin_up[task_cpu(p)];
+		margin = schedtune_task_boost(p) > 0 &&
+			   p->prio <= DEFAULT_PRIO ?
+			sched_capacity_margin_up_boosted[task_cpu(p)] :
+			sched_capacity_margin_up[task_cpu(p)];
 
 	return capacity * 1024 > boosted_task_util(p) * margin;
 }
@@ -7950,7 +7956,7 @@ static inline int find_best_target(struct task_struct *p, int *backup_cpu,
 		 */
 		if ((prefer_idle && best_idle_cpu != -1) ||
 		    (boosted && (best_idle_cpu != -1 || target_cpu != -1))) {
-			if (boosted) {
+			if (boosted && p->prio <= DEFAULT_PRIO) {
 				/*
 				 * For boosted task, stop searching when an idle
 				 * cpu is found in mid cluster.
@@ -8294,7 +8300,7 @@ static int find_energy_efficient_cpu(struct sched_domain *sd,
 	int placement_boost = task_boost_policy(p);
 	u64 start_t = 0;
 	int next_cpu = -1, backup_cpu = -1;
-	int boosted = (schedtune_task_boost(p) > 0 || per_task_boost(p) > 0);
+	int boosted = (schedtune_task_boost(p) > 0 && p->prio <= DEFAULT_PRIO);
 
 	fbt_env.fastpath = 0;
 	fbt_env.need_idle = 0;
