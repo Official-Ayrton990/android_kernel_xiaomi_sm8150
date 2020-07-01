@@ -891,15 +891,6 @@ int dsi_panel_set_backlight(struct dsi_panel *panel, u32 bl_lvl)
 			panel->skip_dimmingon = STATE_NONE;
 	}
 
-	if (bl_lvl > 0 && panel->last_bl_lvl == 0) {
-		pr_info("crc off when quickly power on\n");
-		rc = dsi_panel_tx_cmd_set(panel, DSI_CMD_SET_DISP_CRC_OFF);
-	}
-
-	if (bl_lvl == 0) {
-		pr_info("DC off when last backlight is 0\n");
-		panel->dc_enable = false;
-	}
 	panel->last_bl_lvl = bl_lvl;
 
 	return rc;
@@ -3708,15 +3699,6 @@ static int dsi_panel_parse_mi_config(struct dsi_panel *panel,
 		pr_info("fod_off_dimming_delay %d\n", panel->fod_off_dimming_delay);
 	}
 
-	rc = of_property_read_u32(of_node,
-			"qcom,mdss-dsi-panel-dc-threshold", &panel->dc_threshold);
-	if (rc) {
-		panel->dc_threshold = 610;
-		pr_info("default dc backlight threshold is %d\n", panel->dc_threshold);
-	} else {
-		pr_info("dc backlight threshold %d \n", panel->dc_threshold);
-	}
-
 	panel->fod_dimlayer_enabled = utils->read_bool(of_node,
 			"qcom,mdss-dsi-panel-fod-dimlayer-enabled");
 	if (panel->fod_dimlayer_enabled) {
@@ -3747,7 +3729,6 @@ static int dsi_panel_parse_mi_config(struct dsi_panel *panel,
 	panel->bl_lowlevel_duration = 0;
 	panel->hbm_duration = 0;
 	panel->hbm_times = 0;
-	panel->dc_enable = false;
 
 	return rc;
 }
@@ -5280,15 +5261,7 @@ static int panel_disp_param_send_lock(struct dsi_panel *panel, int param)
 			pr_info("FOD backlight restore last_bl_lvl=%d, doze_state=%d",
 				panel->last_bl_lvl, display->drm_dev->doze_state);
 			rc = dsi_panel_tx_cmd_set(panel, DSI_CMD_SET_DISP_DIMMINGOFF);
-			if (panel->dc_enable) {
-				pr_info("FOD backlight restore dc_threshold=%d, doze_state=%d",
-				panel->dc_threshold, display->drm_dev->state);
-				rc = dsi_panel_update_backlight(panel, panel->dc_threshold);
-			} else {
-				pr_info("FOD backlight restore last_bl_lvl=%d, doze_state=%d",
-				panel->last_bl_lvl, display->drm_dev->state);
-				rc = dsi_panel_update_backlight(panel, panel->last_bl_lvl);
-			}
+			rc = dsi_panel_update_backlight(panel, panel->last_bl_lvl);
 
 			if ((display->drm_dev && display->drm_dev->doze_state == MSM_DRM_BLANK_LP1) ||
 				(display->drm_dev && display->drm_dev->doze_state == MSM_DRM_BLANK_LP2)) {
