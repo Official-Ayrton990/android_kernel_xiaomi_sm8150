@@ -770,9 +770,6 @@ int sde_connector_update_hbm(struct sde_connector *c_conn)
 				} else if (dsi_display->panel->last_bl_lvl < dsi_display->panel->doze_backlight_threshold
 							&& dsi_display->panel->last_bl_lvl > 0) {
 					pr_info("hbm fod off doze lbm on\n");
-					dsi_display->panel->fod_dimlayer_hbm_enabled = false;
-					dsi_display->panel->hbm_enabled = false;
-					pr_debug("set fod_dimlayer_hbm_enabled state at hbm fod off doze lbm on is [%d]", dsi_display->panel->fod_dimlayer_hbm_enabled);
 					dsi_display_write_panel(dsi_display, &dsi_display->panel->cur_mode->priv_info->cmd_sets[DSI_CMD_SET_DOZE_LBM]);
 					dsi_display->drm_dev->doze_brightness = DOZE_BRIGHTNESS_LBM;
 				}
