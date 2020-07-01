@@ -830,26 +830,6 @@ int dsi_panel_set_backlight(struct dsi_panel *panel, u32 bl_lvl)
 
 	if (0 == bl_lvl)
 		dsi_panel_tx_cmd_set(panel, DSI_CMD_SET_DISP_DIMMINGOFF);
-	if (panel->dc_enable && bl_lvl < panel->dc_threshold && bl_lvl != 0) {
-		pr_info("skip set backlight because dc enable %d, dim_layer_replace_dc:%d, bl %d, last_bl %d\n",
-			panel->dc_enable, panel->dim_layer_replace_dc, bl_lvl, panel->last_bl_lvl);
-		return rc;
-	}
-
-	if (panel->fod_dimlayer_bl_block) {
-		panel->last_bl_lvl = bl_lvl;
-		pr_info("skip set backlight due to dim layer block\n");
-		return rc;
-	}
-
-	if (panel->fodflag && panel->last_bl_lvl == 0 && bl_lvl != 0 && !panel->fod_dimlayer_hbm_enabled && panel->fod_dimlayer_enabled) {
-		panel->fod_dimlayer_bl_block = true;
-		pr_info("the fod_dimlayer_bl_block state is [%d]\n", panel->fod_dimlayer_bl_block);
-		panel->last_bl_lvl = bl_lvl;
-		rc = dsi_panel_tx_cmd_set(panel, DSI_CMD_SET_DISP_CRC_OFF);
-		pr_info("crc off when fod dimlayer hbm disable\n");
-		return rc;
-	}
 
 	if (panel->bl_config.bl_remap_flag && panel->bl_config.brightness_max_level
 		&& panel->bl_config.bl_max_level) {
@@ -892,7 +872,6 @@ int dsi_panel_set_backlight(struct dsi_panel *panel, u32 bl_lvl)
 	}
 
 	panel->last_bl_lvl = bl_lvl;
-
 	return rc;
 }
 
@@ -4761,11 +4740,6 @@ int dsi_panel_set_nolp(struct dsi_panel *panel)
 	mutex_lock(&panel->panel_lock);
 
 	if (!panel->fod_hbm_enabled && !panel->fod_dimlayer_hbm_enabled) {
-		if (panel->fodflag && panel->fod_dimlayer_enabled) {
-			dsi_panel_update_backlight(panel, 0);
-			panel->fod_dimlayer_bl_block = true;
-			pr_info("the fod_dimlayer_bl_block state is [%d]\n", panel->fod_dimlayer_bl_block);
-		}
 		rc = dsi_panel_tx_cmd_set(panel, DSI_CMD_SET_NOLP);
 		if (rc)
 			pr_err("[%s] failed to send DSI_CMD_SET_NOLP cmd, rc=%d\n",
@@ -4788,10 +4762,7 @@ int dsi_panel_set_nolp(struct dsi_panel *panel)
 		dsi_pwr_panel_regulator_mode_set(&panel->power_info,
 			"ibb", REGULATOR_MODE_NORMAL);
 
-	rc = dsi_panel_tx_cmd_set(panel, DSI_CMD_SET_NOLP);
-	if (rc)
-		pr_err("[%s] failed to send DSI_CMD_SET_NOLP cmd, rc=%d\n",
-		       panel->name, rc);
+exit:
 	mutex_unlock(&panel->panel_lock);
 	return rc;
 }
@@ -5180,16 +5151,6 @@ static int panel_disp_param_send_lock(struct dsi_panel *panel, int param)
 		pr_info("hbm fod to normal mode\n");
 		rc = dsi_panel_tx_cmd_set(panel, DSI_CMD_SET_DISP_HBM_FOD2NORM);
 		break;
-	case DISPPARAM_DC_ON:
-		if (!panel->dim_layer_replace_dc) {
-			pr_info("DC on\n");
-			panel->dc_enable = true;
-		}
-		break;
-	case DISPPARAM_DC_OFF:
-		pr_info("DC off\n");
-		panel->dc_enable = false;
-		break;
 	case DISPPARAM_HBM_FOD_OFF:
 		pr_info("hbm fod off\n");
 		if (panel->elvss_dimming_check_enable) {
@@ -5287,8 +5248,6 @@ static int panel_disp_param_send_lock(struct dsi_panel *panel, int param)
 		rc = dsi_panel_tx_cmd_set(panel, DSI_CMD_SET_NOLP);
 		break;
 	case DISPPARAM_HBM_BACKLIGHT_RESEND:
-		if (panel->fod_dimlayer_bl_block)
-			break;
 		{
 			u32 dim_backlight;
 
@@ -5654,8 +5613,6 @@ int dsi_panel_disable(struct dsi_panel *panel)
 	panel->fod_dimlayer_hbm_enabled = false;
 	panel->in_aod = false;
 	panel->fod_backlight_flag = false;
-	panel->dc_enable = false;
-	panel->dim_layer_replace_dc = false;
 	panel->power_mode = SDE_MODE_DPMS_OFF;
 
 	mutex_unlock(&panel->panel_lock);
