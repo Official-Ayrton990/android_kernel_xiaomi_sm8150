@@ -789,9 +789,6 @@ int sde_connector_update_hbm(struct sde_connector *c_conn)
 				/* reset backlight level */
 				dsi_panel_set_backlight(dsi_display->panel, dsi_display->panel->last_bl_lvl);
 
-				/* reset backlight level */
-				dsi_panel_set_backlight(dsi_display->panel, dsi_display->panel->last_bl_lvl);
-
 				dsi_display->panel->skip_dimmingon = STATE_DIM_RESTORE;
 				dsi_display->panel->hbm_enabled = false;
 				dsi_display->panel->fod_dimlayer_hbm_enabled = false;
