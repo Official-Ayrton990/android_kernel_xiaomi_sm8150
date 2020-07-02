@@ -1951,7 +1951,6 @@ static inline int hrtick_enabled(struct rq *rq)
 #ifdef CONFIG_SCHED_WALT
 u64 sched_ktime_clock(void);
 #else
-#define sched_ktime_clock ktime_get_ns
 static inline u64 sched_ktime_clock(void)
 {
 	return sched_clock();
