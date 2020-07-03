@@ -2606,7 +2606,7 @@ int mhi_get_remote_time(struct mhi_device *mhi_dev,
 
 	tsync_node->local_time =
 		mhi_cntrl->time_get(mhi_cntrl, mhi_cntrl->priv_data);
-	writel_relaxed(tsync_node->int_sequence, mhi_cntrl->tsync_db);
+	writel_relaxed(mhi_tsync->int_sequence, mhi_cntrl->tsync_db);
 	/* write must go thru immediately */
 	wmb();
 
