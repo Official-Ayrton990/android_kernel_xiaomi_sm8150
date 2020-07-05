@@ -3541,7 +3541,7 @@ static void fts_gesture_event_handler(struct fts_ts_info *info,
 	if (!info->gesture_enabled)
 		return;
 
-		switch (event[2]) {
+	switch (event[2]) {
 		case GEST_ID_DBLTAP:
             if (!info->gesture_enabled)
 			    value = KEY_DOUBLE_TAP;
