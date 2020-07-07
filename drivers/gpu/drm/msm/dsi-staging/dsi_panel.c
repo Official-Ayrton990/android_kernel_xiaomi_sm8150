@@ -28,6 +28,7 @@
 #include <linux/fs.h>
 #include <asm/uaccess.h>
 #include <asm/fcntl.h>
+#include <linux/devfreq_boost.h>
 
 #define DSI_READ_WRITE_PANEL_DEBUG 1
 #if DSI_READ_WRITE_PANEL_DEBUG
@@ -719,6 +720,9 @@ u32 dsi_panel_get_backlight(struct dsi_panel *panel)
 
 static u32 interpolate(uint32_t x, uint32_t xa, uint32_t xb, uint32_t ya, uint32_t yb)
 {
+	/*boost DDR bus when calculating fod dim alpha*/
+	devfreq_boost_kick_max(DEVFREQ_MSM_CPUBW, 150);
+	devfreq_boost_kick_max(DEVFREQ_MSM_LLCCBW, 150);
 	return ya * (x/xa)^(__ilog2_u32(yb/ya)/__ilog2_u32(xb/xa));;
 }
 
@@ -818,10 +822,6 @@ int dsi_panel_set_backlight(struct dsi_panel *panel, u32 bl_lvl)
 	if (panel->host_config.ext_bridge_num)
 		return 0;
 
-#ifdef CONFIG_EXPOSURE_ADJUSTMENT
-	bl_lvl = ea_panel_calc_backlight(bl_lvl);
-#endif
-
 	pr_debug("backlight type:%d lvl:%d\n", bl->type, bl_lvl);
 	switch (bl->type) {
 	case DSI_BACKLIGHT_WLED:
@@ -868,7 +868,7 @@ static u32 dsi_panel_get_brightness(struct dsi_backlight_config *bl)
 		break;
 	}
 
-	pr_debug("cur_bl_level=%d\n", cur_bl_level);
+	pr_info("cur_bl_level=%d\n", cur_bl_level);
 	return cur_bl_level;
 }
 
