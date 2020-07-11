@@ -37,10 +37,6 @@
 
 #include "../../../../../kernel/irq/internals.h"
 
-#ifdef CONFIG_EXPOSURE_ADJUSTMENT
-#include "exposure_adjustment.h"
-#endif
-
 /**
  * topology is currently defined by a set of following 3 values:
  * 1. num of layer mixers
