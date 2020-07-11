@@ -380,6 +380,12 @@ static inline bool sugov_cpu_is_busy(struct sugov_cpu *sg_cpu) { return false; }
 
 #define NL_RATIO 75
 #define DEFAULT_HISPEED_LOAD 90
+#define DEFAULT_CPU0_UP_RATE_LIMIT_US	0
+#define DEFAULT_CPU0_DOWN_RATE_LIMIT_US 0
+#define DEFAULT_CPU4_UP_RATE_LIMIT_US 1000
+#define DEFAULT_CPU4_DOWN_RATE_LIMIT_US 1000
+#define DEFAULT_CPU7_UP_RATE_LIMIT_US 1000
+#define DEFAULT_CPU7_DOWN_RATE_LIMIT_US 1000
 static void sugov_walt_adjust(struct sugov_cpu *sg_cpu, unsigned long *util,
 			      unsigned long *max)
 {
@@ -678,6 +684,9 @@ static ssize_t down_rate_limit_us_store(struct gov_attr_set *attr_set,
 	struct sugov_policy *sg_policy;
 	unsigned int rate_limit_us;
 
+	if (task_is_booster(current))
+		return count;
+
 	if (kstrtouint(buf, 10, &rate_limit_us))
 		return -EINVAL;
 
@@ -726,6 +735,9 @@ static ssize_t hispeed_freq_store(struct gov_attr_set *attr_set,
 	struct sugov_policy *sg_policy;
 	unsigned long hs_util;
 	unsigned long flags;
+
+	if (task_is_booster(current))
+		return count;
 
 	if (kstrtouint(buf, 10, &val))
 		return -EINVAL;
@@ -960,13 +972,34 @@ static int sugov_init(struct cpufreq_policy *policy)
 		ret = -ENOMEM;
 		goto stop_kthread;
 	}
-
-	tunables->up_rate_limit_us =
-				cpufreq_policy_transition_delay_us(policy);
+	/*tunables->up_rate_limit_us =
+				1000;
 	tunables->down_rate_limit_us =
-				cpufreq_policy_transition_delay_us(policy);
+				1000;*/
 	tunables->hispeed_load = DEFAULT_HISPEED_LOAD;
 	tunables->hispeed_freq = 0;
+
+	/**
+	*
+	* This values are selected to be used on sm8150 common devices, but tunned consider thermal throttling on the Xiaomi Cepheus
+	*
+	**/
+
+	switch (policy->cpu) {
+	default:
+	case 0:
+        tunables->up_rate_limit_us = DEFAULT_CPU0_UP_RATE_LIMIT_US;
+        tunables->down_rate_limit_us = DEFAULT_CPU0_DOWN_RATE_LIMIT_US;
+	break;
+	case 4:
+        tunables->up_rate_limit_us = DEFAULT_CPU4_UP_RATE_LIMIT_US;
+        tunables->down_rate_limit_us = DEFAULT_CPU4_DOWN_RATE_LIMIT_US;
+	break;
+	case 7:
+        tunables->up_rate_limit_us = DEFAULT_CPU7_UP_RATE_LIMIT_US;
+        tunables->down_rate_limit_us = DEFAULT_CPU7_DOWN_RATE_LIMIT_US;
+	break;
+	}
 
 	policy->governor_data = sg_policy;
 	sg_policy->tunables = tunables;
