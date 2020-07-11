@@ -764,7 +764,7 @@ config MEMCG
 
 config MEMCG_SWAP
 	bool "Swap controller"
-	depends on MEMCG && SWAP
+	depends on MEMCG && (SWAP || ZRAM)
 	help
 	  Provides control over the swap space consumed by tasks in a cgroup.
 
