@@ -121,6 +121,7 @@ And public attribution of xiaomi platforms(like F1 and so and)
 	qcom,distinguish-qc-class-ab;
 	qcom,sw-jeita-enable;
 	qcom,wd-bark-time-secs = <16>;
+	google,wdog_snarl_disable;
 	qcom,support-wireless;
 	qcom,dynamic-fv-enable;
 	qcom,lpd-disable;
