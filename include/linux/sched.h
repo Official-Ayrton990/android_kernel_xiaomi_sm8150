@@ -1268,7 +1268,6 @@ struct task_struct {
 
 	unsigned int			top_app;
 	unsigned int			inherit_top_app;
-	unsigned int			top_app_no_override;
 
 #ifdef CONFIG_KASAN
 	unsigned int			kasan_depth;
