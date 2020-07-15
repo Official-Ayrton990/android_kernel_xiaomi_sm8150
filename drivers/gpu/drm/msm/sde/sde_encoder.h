@@ -218,6 +218,14 @@ void sde_encoder_virt_restore(struct drm_encoder *encoder);
 bool sde_encoder_is_dsc_merge(struct drm_encoder *drm_enc);
 
 /**
+ * sde_encoder_check_mode - check if given mode is supported or not
+ * @drm_enc: Pointer to drm encoder object
+ * @mode: Mode to be checked
+ * @Return: true if it is cmd mode
+ */
+bool sde_encoder_check_mode(struct drm_encoder *drm_enc, u32 mode);
+
+/**
  * sde_encoder_check_curr_mode - check if given mode is supported or not
  * @drm_enc: Pointer to drm encoder object
  * @mode: Mode to be checked

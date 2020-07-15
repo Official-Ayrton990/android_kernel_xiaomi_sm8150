@@ -4221,6 +4221,22 @@ bool sde_encoder_check_curr_mode(struct drm_encoder *drm_enc, u32 mode)
 	return (disp_info->curr_panel_mode == mode);
 }
 
+bool sde_encoder_check_mode(struct drm_encoder *drm_enc, u32 mode)
+{
+	struct sde_encoder_virt *sde_enc;
+	struct msm_display_info *disp_info;
+
+	if (!drm_enc) {
+		SDE_ERROR("invalid encoder\n");
+		return false;
+	}
+
+	sde_enc = to_sde_encoder_virt(drm_enc);
+	disp_info = &sde_enc->disp_info;
+
+	return (disp_info->capabilities & mode);
+}
+
 void sde_encoder_trigger_kickoff_pending(struct drm_encoder *drm_enc)
 {
 	struct sde_encoder_virt *sde_enc;
