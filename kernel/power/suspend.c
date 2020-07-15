@@ -149,7 +149,6 @@ static void s2idle_loop(void)
 			break;
 
 		pm_wakeup_clear(false);
-		clear_wakeup_reasons();
 	}
 
 	pm_pr_dbg("resume from suspend-to-idle\n");
