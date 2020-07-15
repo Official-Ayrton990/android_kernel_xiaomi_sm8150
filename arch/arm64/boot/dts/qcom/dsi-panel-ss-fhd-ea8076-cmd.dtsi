@@ -62,6 +62,7 @@
 		qcom,mdss-panel-on-dimming-delay = <90>;
 		/* IRQF_ONESHOT | IRQF_TRIGGER_FALLING */
 		/* trig-flags: falling-0x0002 rasing-0x0001 */
+		qcom,esd-err-irq-gpio = <&tlmm 5 0x2002>;
 
 		qcom,disp-doze-lpm-backlight = <20>;
 		qcom,disp-doze-hbm-backlight = <266>;

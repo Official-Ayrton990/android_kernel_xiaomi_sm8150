@@ -85,6 +85,9 @@
 			2000	0x24
 			2047	0x21
 		>;
+		
+		/* IRQF_ONESHOT | IRQF_TRIGGER_FALLING */
+		qcom,esd-err-irq-gpio = <&tlmm 27 0x2002>;
 
 		qcom,mdss-dsi-display-timings {
 			timing@0{
