@@ -87,8 +87,6 @@ static int sde_crtc_idle_interrupt_handler(struct drm_crtc *crtc_drm,
 	bool en, struct sde_irq_callback *idle_irq);
 static int sde_crtc_pm_event_handler(struct drm_crtc *crtc, bool en,
 		struct sde_irq_callback *noirq);
-static int sde_crtc_tp_event_handler(struct drm_crtc *crtc_drm,
-	bool en, struct sde_irq_callback *irq);
 
 static struct sde_crtc_custom_events custom_events[] = {
 	{DRM_EVENT_AD_BACKLIGHT, sde_cp_ad_interrupt},
@@ -96,7 +94,6 @@ static struct sde_crtc_custom_events custom_events[] = {
 	{DRM_EVENT_IDLE_NOTIFY, sde_crtc_idle_interrupt_handler},
 	{DRM_EVENT_HISTOGRAM, sde_cp_hist_interrupt},
 	{DRM_EVENT_SDE_POWER, sde_crtc_pm_event_handler},
-	{DRM_EVENT_TOUCH, sde_crtc_tp_event_handler},
 };
 
 /* default input fence timeout, in ms */
@@ -7118,37 +7115,6 @@ static void __sde_crtc_idle_notify_work(struct kthread_work *work)
 	}
 }
 
-void sde_crtc_touch_notify(void)
-{
-	int ret = 0;
-	struct drm_event event;
-	struct dsi_bridge *c_bridge = NULL;
-	struct dsi_display *dsi_display = NULL;
-	struct drm_encoder *encoder = NULL;
-
-	if (gcrtc) {
-		list_for_each_entry(encoder, &gcrtc->dev->mode_config.encoder_list, head) {
-			if (encoder->crtc != gcrtc)
-				continue;
-
-			c_bridge = container_of(encoder->bridge, struct dsi_bridge, base);
-			if (c_bridge)
-				dsi_display = c_bridge->display;
-			break;
-		}
-
-		if (dsi_display && dsi_display->is_prim_display && dsi_display->panel
-			&& !dsi_display->panel->panel_max_frame_rate) {
-			event.type = DRM_EVENT_TOUCH;
-			event.length = sizeof(u32);
-			msm_mode_object_event_notify(&gcrtc->base, gcrtc->dev,
-				&event, (u8 *)&ret);
-			gcrtc = NULL;
-		}
-	}
-}
-EXPORT_SYMBOL(sde_crtc_touch_notify);
-
 /* initialize crtc */
 struct drm_crtc *sde_crtc_init(struct drm_device *dev, struct drm_plane *plane)
 {
@@ -7459,11 +7425,6 @@ static int sde_crtc_idle_interrupt_handler(struct drm_crtc *crtc_drm,
 	return 0;
 }
 
-static int sde_crtc_tp_event_handler(struct drm_crtc *crtc_drm,
-	bool en, struct sde_irq_callback *irq)
-{
-	return 0;
-}
 /**
  * sde_crtc_update_cont_splash_settings - update mixer settings
  *	and initial clk during device bootup for cont_splash use case
