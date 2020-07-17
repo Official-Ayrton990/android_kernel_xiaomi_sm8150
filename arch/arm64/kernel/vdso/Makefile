@@ -9,16 +9,8 @@
 obj-vdso := gettimeofday.o note.o sigreturn.o
 
 # Build rules
-targets := $(obj-vdso-s) $(obj-vdso-c) vdso.so vdso.so.dbg
-obj-vdso-s := $(addprefix $(obj)/, $(obj-vdso-s))
-obj-vdso-c := $(addprefix $(obj)/, $(obj-vdso-c))
-obj-vdso   := $(obj-vdso-c) $(obj-vdso-s)
-
-ldflags-y := -shared -nostdlib -soname=linux-vdso.so.1  --hash-style=sysv \
-		--build-id -n -T
-ccflags-y += -DDISABLE_BRANCH_PROFILING -ffixed-x18 -fno-stack-protector
-ccflags-y += $(DISABLE_LTO)
-ccflags-y += $(call cc-option, -fno-whole-program)
+targets := $(obj-vdso) vdso.so vdso.so.dbg
+obj-vdso := $(addprefix $(obj)/, $(obj-vdso))
 
 ccflags-y := -shared -fno-common -fno-builtin
 ccflags-y += -nostdlib -Wl,-soname=linux-vdso.so.1 \
