@@ -11,7 +11,6 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
-#include <linux/binfmts.h>
 #include <linux/cpufreq.h>
 #include <linux/kthread.h>
 #include <uapi/linux/sched/types.h>
@@ -101,17 +100,19 @@ static bool sugov_should_update_freq(struct sugov_policy *sg_policy, u64 time)
 	 * by the hardware, as calculating the frequency is pointless if
 	 * we cannot in fact act on it.
 	 *
-	 * This is needed on the slow switching platforms too to prevent CPUs
-	 * going offline from leaving stale IRQ work items behind.
+	 * For the slow switching platforms, the kthread is always scheduled on
+	 * the right set of CPUs and any CPU can find the next frequency and
+	 * schedule the kthread.
 	 */
-	if (!cpufreq_this_cpu_can_update(sg_policy->policy))
+	if (sg_policy->policy->fast_switch_enabled &&
+	    !cpufreq_can_do_remote_dvfs(sg_policy->policy))
 		return false;
 
 	if (unlikely(sg_policy->limits_changed)) {
 		sg_policy->limits_changed = false;
 		sg_policy->need_freq_update = true;
 		return true;
-
+	}
 	/* No need to recalculate next freq for min_rate_limit_us
 	 * at least. However we might still decide to further rate
 	 * limit once frequency change direction is decided, according
@@ -161,7 +162,7 @@ static void sugov_update_commit(struct sugov_policy *sg_policy, u64 time,
 	if (sugov_up_down_rate_limit(sg_policy, time, next_freq)) {
 		/* Don't cache a raw freq that didn't become next_freq */
 		sg_policy->cached_raw_freq = 0;
-	return;
+		return;
 	}
 
 	sg_policy->next_freq = next_freq;
@@ -215,11 +216,8 @@ static unsigned int get_next_freq(struct sugov_policy *sg_policy,
 	freq = (freq + (freq >> 2)) * util / max;
 	trace_sugov_next_freq(policy->cpu, util, max, freq);
 
-	if (freq == sg_policy->cached_raw_freq && !sg_policy->need_freq_update)
+	if (freq == sg_policy->cached_raw_freq && sg_policy->next_freq != UINT_MAX)
 		return sg_policy->next_freq;
-
-	sg_policy->need_freq_update = false;
-	sg_policy->prev_cached_raw_freq = sg_policy->cached_raw_freq;
 	sg_policy->cached_raw_freq = freq;
 	return cpufreq_driver_resolve_freq(policy, freq);
 }
@@ -269,6 +267,14 @@ static void sugov_set_iowait_boost(struct sugov_cpu *sg_cpu, u64 time,
 		} else {
 			sg_cpu->iowait_boost = sg_cpu->sg_policy->policy->min;
 		}
+	} else if (sg_cpu->iowait_boost) {
+		s64 delta_ns = time - sg_cpu->last_update;
+
+		/* Clear iowait_boost if the CPU apprears to have been idle. */
+		if (delta_ns > TICK_NSEC) {
+			sg_cpu->iowait_boost = 0;
+			sg_cpu->iowait_boost_pending = false;
+		}
 	}
 }
 
@@ -312,6 +318,15 @@ static bool sugov_cpu_is_busy(struct sugov_cpu *sg_cpu)
 static inline bool sugov_cpu_is_busy(struct sugov_cpu *sg_cpu) { return false; }
 #endif /* CONFIG_NO_HZ_COMMON */
 
+#define NL_RATIO 75
+#define DEFAULT_HISPEED_LOAD 90
+#define DEFAULT_CPU0_UP_RATE_LIMIT_US 500
+#define DEFAULT_CPU0_DOWN_RATE_LIMIT_US 20000
+#define DEFAULT_CPU4_UP_RATE_LIMIT_US 500
+#define DEFAULT_CPU4_DOWN_RATE_LIMIT_US 20000
+#define DEFAULT_CPU7_UP_RATE_LIMIT_US 500
+#define DEFAULT_CPU7_DOWN_RATE_LIMIT_US 20000
+
 static void sugov_update_single(struct update_util_data *hook, u64 time,
 				unsigned int flags)
 {
@@ -348,11 +363,12 @@ static void sugov_update_single(struct update_util_data *hook, u64 time,
 		 * Do not reduce the frequency if the CPU has not been idle
 		 * recently, as the reduction is likely to be premature then.
 		 */
-		if (busy && next_f < sg_policy->next_freq) {
+		if (busy && next_f < sg_policy->next_freq &&
+		    sg_policy->next_freq != UINT_MAX) {
 			next_f = sg_policy->next_freq;
 
-			/* Restore cached freq as next_freq has changed */
-			sg_policy->cached_raw_freq = sg_policy->prev_cached_raw_freq;
+			/* Reset cached freq as next_freq has changed */
+			sg_policy->cached_raw_freq = 0;
 		}
 	}
 	sugov_update_commit(sg_policy, time, next_f);
@@ -501,14 +517,14 @@ static ssize_t up_rate_limit_us_show(struct gov_attr_set *attr_set, char *buf)
 {
 	struct sugov_tunables *tunables = to_sugov_tunables(attr_set);
 
-	return scnprintf(buf, PAGE_SIZE, "%u\n", tunables->up_rate_limit_us);
+	return sprintf(buf, "%u\n", tunables->up_rate_limit_us);
 }
 
 static ssize_t down_rate_limit_us_show(struct gov_attr_set *attr_set, char *buf)
 {
 	struct sugov_tunables *tunables = to_sugov_tunables(attr_set);
 
-	return scnprintf(buf, PAGE_SIZE, "%u\n", tunables->down_rate_limit_us);
+	return sprintf(buf, "%u\n", tunables->down_rate_limit_us);
 }
 
 static ssize_t up_rate_limit_us_store(struct gov_attr_set *attr_set,
@@ -517,9 +533,6 @@ static ssize_t up_rate_limit_us_store(struct gov_attr_set *attr_set,
 	struct sugov_tunables *tunables = to_sugov_tunables(attr_set);
 	struct sugov_policy *sg_policy;
 	unsigned int rate_limit_us;
-
-	if (task_is_booster(current))
-		return count;
 
 	if (kstrtouint(buf, 10, &rate_limit_us))
 		return -EINVAL;
@@ -540,9 +553,6 @@ static ssize_t down_rate_limit_us_store(struct gov_attr_set *attr_set,
 	struct sugov_tunables *tunables = to_sugov_tunables(attr_set);
 	struct sugov_policy *sg_policy;
 	unsigned int rate_limit_us;
-
-	if (task_is_booster(current))
-		return count;
 
 	if (kstrtouint(buf, 10, &rate_limit_us))
 		return -EINVAL;
@@ -647,7 +657,11 @@ static int sugov_kthread_create(struct sugov_policy *sg_policy)
 	}
 
 	sg_policy->thread = thread;
-	kthread_bind_mask(thread, policy->related_cpus);
+
+	/* Kthread is bound to all CPUs by default */
+	if (!policy->dvfs_possible_from_any_cpu)
+		kthread_bind_mask(thread, policy->related_cpus);
+
 	init_irq_work(&sg_policy->irq_work, sugov_irq_work);
 	mutex_init(&sg_policy->work_lock);
 
@@ -767,16 +781,33 @@ static int sugov_init(struct cpufreq_policy *policy)
 	}
 
 	tunables->up_rate_limit_us =
-				CONFIG_SCHEDUTIL_UP_RATE_LIMIT;
+				500;
 	tunables->down_rate_limit_us =
-				CONFIG_SCHEDUTIL_DOWN_RATE_LIMIT;
-
-	tunables->up_rate_limit_us =
-				5000;
-	tunables->down_rate_limit_us =
-				10000;
+				20000;
 
 	tunables->iowait_boost_enable = true;
+
+	/**
+	*
+	* This values are selected to be used on sm8150 common devices, but tunned consider thermal throttling on the Xiaomi Cepheus
+	*
+	**/
+	
+	switch (policy->cpu) {
+	default:
+	case 0:
+        tunables->up_rate_limit_us = DEFAULT_CPU0_UP_RATE_LIMIT_US;
+        tunables->down_rate_limit_us = DEFAULT_CPU0_DOWN_RATE_LIMIT_US;
+	break;
+	case 4:
+        tunables->up_rate_limit_us = DEFAULT_CPU4_UP_RATE_LIMIT_US;
+        tunables->down_rate_limit_us = DEFAULT_CPU4_DOWN_RATE_LIMIT_US;
+	break;
+	case 7:
+        tunables->up_rate_limit_us = DEFAULT_CPU7_UP_RATE_LIMIT_US;
+        tunables->down_rate_limit_us = DEFAULT_CPU7_DOWN_RATE_LIMIT_US;
+	break;
+	}
 
 	policy->governor_data = sg_policy;
 	sg_policy->tunables = tunables;
@@ -844,12 +875,11 @@ static int sugov_start(struct cpufreq_policy *policy)
 	sg_policy->down_rate_delay_ns =
 		sg_policy->tunables->down_rate_limit_us * NSEC_PER_USEC;
 	sg_policy->last_freq_update_time = 0;
-	sg_policy->next_freq = 0;
+	sg_policy->next_freq = UINT_MAX;
 	sg_policy->work_in_progress = false;
 	sg_policy->limits_changed = false;
 	sg_policy->need_freq_update = false;
 	sg_policy->cached_raw_freq = 0;
-	sg_policy->prev_cached_raw_freq	= 0;
 
 	for_each_cpu(cpu, policy->cpus) {
 		struct sugov_cpu *sg_cpu = &per_cpu(sugov_cpu, cpu);
