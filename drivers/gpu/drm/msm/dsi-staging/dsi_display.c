@@ -60,6 +60,13 @@ static const struct of_device_id dsi_display_dt_match[] = {
 	{}
 };
 
+struct dsi_display *primary_display;
+struct dsi_display *get_primary_display(void)
+{
+	return primary_display;
+}
+EXPORT_SYMBOL(get_primary_display);
+
 static void dsi_display_mask_ctrl_error_interrupts(struct dsi_display *display,
 			u32 mask, bool enable)
 {
@@ -1234,10 +1241,13 @@ int dsi_display_set_power(struct drm_connector *connector,
 
 	notify_data.data = &event;
 
+
 	switch (power_mode) {
 	case SDE_MODE_DPMS_LP1:
 		msm_drm_notifier_call_chain(MSM_DRM_EARLY_EVENT_BLANK, &notify_data);
 		rc = dsi_panel_set_lp1(display->panel);
+		if (!rc)
+			dsi_panel_set_doze_backlight(display);
 		msm_drm_notifier_call_chain(MSM_DRM_EVENT_BLANK, &notify_data);
 		if (!rc)
 			dsi_panel_set_doze_backlight(display);
@@ -1246,6 +1256,8 @@ int dsi_display_set_power(struct drm_connector *connector,
 	case SDE_MODE_DPMS_LP2:
 		msm_drm_notifier_call_chain(MSM_DRM_EARLY_EVENT_BLANK, &notify_data);
 		rc = dsi_panel_set_lp2(display->panel);
+		if (!rc)
+			dsi_panel_set_doze_backlight(display);
 		msm_drm_notifier_call_chain(MSM_DRM_EVENT_BLANK, &notify_data);
 		if (!rc)
 			dsi_panel_set_doze_backlight(display);
@@ -1256,6 +1268,8 @@ int dsi_display_set_power(struct drm_connector *connector,
 			display->panel->power_mode == SDE_MODE_DPMS_LP2) {
 			msm_drm_notifier_call_chain(MSM_DRM_EARLY_EVENT_BLANK, &notify_data);
 			rc = dsi_panel_set_nolp(display->panel);
+			if (!rc)
+				dsi_panel_set_doze_backlight(display);
 			msm_drm_notifier_call_chain(MSM_DRM_EVENT_BLANK, &notify_data);
 		if (!rc)
 			dsi_panel_set_doze_backlight(display);
@@ -6538,6 +6552,7 @@ int dsi_display_get_modes(struct dsi_display *display,
 exit:
 	*out_modes = display->modes;
 	rc = 0;
+	primary_display = display;
 
 error:
 	if (rc)
