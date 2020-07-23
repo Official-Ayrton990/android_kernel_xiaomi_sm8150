@@ -41,7 +41,6 @@
 #include <linux/irqchip.h>
 #include <linux/irqchip/chained_irq.h>
 #include <linux/irqchip/arm-gic.h>
-#include <linux/msm_rtb.h>
 #include <linux/wakeup_reason.h>
 
 #include <asm/cputype.h>
