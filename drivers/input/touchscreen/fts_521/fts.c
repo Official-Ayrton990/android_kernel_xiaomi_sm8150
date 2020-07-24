@@ -4811,32 +4811,35 @@ static int fts_drm_state_chg_callback(struct notifier_block *nb,
 	struct msm_drm_notifier *evdata = data;
 	unsigned int blank;
 
-	logError(0, "%s %s: fts notifier begin!\n", tag, __func__);
+	if (!evdata || (evdata->id != 0))
+		return 0;
 
-	if (evdata && evdata->data && info) {
+	if (val != MSM_DRM_EVENT_BLANK)
+		return 0;
 
-		blank = *(int *)(evdata->data);
-		logError(1, "%s %s: val:%lu,blank:%u\n", tag, __func__, val, blank);
+	if (evdata->data && val == MSM_DRM_EVENT_BLANK &&
+		(blank == MSM_DRM_BLANK_POWERDOWN || blank == MSM_DRM_BLANK_LP1
+					|| blank == MSM_DRM_BLANK_LP2) && info) {
+		blank = *(int *) (evdata->data);
 
-		if (val == MSM_DRM_EARLY_EVENT_BLANK && (blank == MSM_DRM_BLANK_POWERDOWN ||
-				blank == MSM_DRM_BLANK_LP1 || blank == MSM_DRM_BLANK_LP2)) {
+		switch (blank) {
+		case MSM_DRM_BLANK_POWERDOWN:
 			if (info->sensor_sleep)
-				return NOTIFY_OK;
-
-			logError(1, "%s %s: FB_BLANK %s\n", tag,
-				 __func__, blank == MSM_DRM_BLANK_POWERDOWN ? "POWER DOWN" : "LP");
+				break;
 
 			flush_workqueue(info->event_wq);
 			queue_work(info->event_wq, &info->suspend_work);
-		} else if (val == MSM_DRM_EVENT_BLANK && blank == MSM_DRM_BLANK_UNBLANK) {
-			if (!info->sensor_sleep)
-				return NOTIFY_OK;
 
-			logError(1, "%s %s: FB_BLANK_UNBLANK\n", tag,
-				 __func__);
+		case MSM_DRM_BLANK_UNBLANK:
+			if (!info->sensor_sleep)
+				break;
 
 			flush_workqueue(info->event_wq);
-			queue_work(info->event_wq, &info->resume_work);
+			if (!info->resume_bit)
+				queue_work(info->event_wq, &info->resume_work);
+			break;
+		default:
+			break;
 		}
 	}
 	return NOTIFY_OK;
