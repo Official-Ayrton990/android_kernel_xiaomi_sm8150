@@ -6658,8 +6658,7 @@ static int fts_probe(struct spi_device *client)
 	int retval;
 	int skip_5_1 = 0;
 	u16 bus_type;
-	u8 *tp_maker;
-
+	
 	logError(1, "%s %s: driver ver: %s\n", tag, __func__,
 		 FTS_TS_DRV_VERSION);
 
@@ -7016,13 +7015,6 @@ static int fts_probe(struct spi_device *client)
 		logError(1, "%s Error: can not create /proc file! \n", tag);
 	info->dbclick_count = 0;
 
-	tp_maker = kzalloc(20, GFP_KERNEL);
-	if (tp_maker == NULL)
-		logError(1, "%s fail to alloc vendor name memory\n", tag);
-	else {
-		kfree(tp_maker);
-		tp_maker = NULL;
-	}
 	device_init_wakeup(&client->dev, 1);
 
 	if (backlight_register_notifier(&info->bl_notifier) < 0) {
