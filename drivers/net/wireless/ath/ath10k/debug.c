@@ -728,7 +728,7 @@ ath10k_debug_get_new_fw_crash_data(struct ath10k *ar)
 
 	crash_data->crashed_since_read = true;
 	guid_gen(&crash_data->guid);
-	ktime_get_real_ts64(&crash_data->timestamp);
+	getnstimeofday(&crash_data->timestamp);
 
 	return crash_data;
 }
@@ -1958,14 +1958,14 @@ int ath10k_debug_start(struct ath10k *ar)
 				    ret);
 	}
 
-	if (ar->pktlog_filter) {
+	if (ar->debug.pktlog_filter) {
 		ret = ath10k_wmi_pdev_pktlog_enable(ar,
-						    ar->pktlog_filter);
+						    ar->debug.pktlog_filter);
 		if (ret)
 			/* not serious */
 			ath10k_warn(ar,
 				    "failed to enable pktlog filter %x: %d\n",
-				    ar->pktlog_filter, ret);
+				    ar->debug.pktlog_filter, ret);
 	} else {
 		ret = ath10k_wmi_pdev_pktlog_disable(ar);
 		if (ret)
@@ -2105,12 +2105,12 @@ static ssize_t ath10k_write_pktlog_filter(struct file *file,
 	mutex_lock(&ar->conf_mutex);
 
 	if (ar->state != ATH10K_STATE_ON) {
-		ar->pktlog_filter = filter;
+		ar->debug.pktlog_filter = filter;
 		ret = count;
 		goto out;
 	}
 
-	if (filter == ar->pktlog_filter) {
+	if (filter == ar->debug.pktlog_filter) {
 		ret = count;
 		goto out;
 	}
@@ -2119,7 +2119,7 @@ static ssize_t ath10k_write_pktlog_filter(struct file *file,
 		ret = ath10k_wmi_pdev_pktlog_enable(ar, filter);
 		if (ret) {
 			ath10k_warn(ar, "failed to enable pktlog filter %x: %d\n",
-				    ar->pktlog_filter, ret);
+				    ar->debug.pktlog_filter, ret);
 			goto out;
 		}
 	} else {
@@ -2130,7 +2130,7 @@ static ssize_t ath10k_write_pktlog_filter(struct file *file,
 		}
 	}
 
-	ar->pktlog_filter = filter;
+	ar->debug.pktlog_filter = filter;
 	ret = count;
 
 out:
@@ -2147,7 +2147,7 @@ static ssize_t ath10k_read_pktlog_filter(struct file *file, char __user *ubuf,
 
 	mutex_lock(&ar->conf_mutex);
 	len = scnprintf(buf, sizeof(buf) - len, "%08x\n",
-			ar->pktlog_filter);
+			ar->debug.pktlog_filter);
 	mutex_unlock(&ar->conf_mutex);
 
 	return simple_read_from_buffer(ubuf, count, ppos, buf, len);

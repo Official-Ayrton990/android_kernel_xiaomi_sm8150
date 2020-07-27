@@ -26,10 +26,6 @@
 
 #define KGSL_PWR_ON	0xFFFF
 
-#define KGSL_AHB_PATH_OFF	0
-#define KGSL_AHB_PATH_LOW	1
-#define KGSL_AHB_PATH_HIGH	2
-
 #define KGSL_MAX_CLKS 17
 #define KGSL_MAX_REGULATORS 2
 
@@ -134,7 +130,6 @@ struct kgsl_regulator {
  * @regulators - array of pointers to kgsl_regulator structs
  * @pcl - bus scale identifier
  * @ocmem - ocmem bus scale identifier
- * @ahbpath_pcl - CPU to AHB path bus scale identifier
  * @irq_name - resource name for the IRQ
  * @clk_stats - structure of clock statistics
  * @pm_qos_req_dma - the power management quality of service structure
@@ -192,7 +187,6 @@ struct kgsl_pwrctrl {
 	struct kgsl_regulator regulators[KGSL_MAX_REGULATORS];
 	uint32_t pcl;
 	uint32_t ocmem_pcl;
-	uint32_t ahbpath_pcl;
 	const char *irq_name;
 	struct kgsl_clk_stats clk_stats;
 	struct pm_qos_request pm_qos_req_dma;
