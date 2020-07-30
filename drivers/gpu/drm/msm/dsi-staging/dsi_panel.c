@@ -23,6 +23,8 @@
 #include "dsi_panel.h"
 #include "dsi_ctrl_hw.h"
 #include "dsi_parser.h"
+#include <linux/devfreq_boost.h>
+#include <linux/cpu_input_boost.h>
 
 /**
  * topology is currently defined by a set of following 3 values:
@@ -728,6 +730,11 @@ u32 dsi_panel_get_fod_dim_alpha(struct dsi_panel *panel)
 				panel->fod_dim_lut[i].brightness,
 				panel->fod_dim_lut[i - 1].alpha,
 				panel->fod_dim_lut[i].alpha);
+	/* apply boost*/
+	devfreq_boost_kick(DEVFREQ_MSM_CPUBW);
+	devfreq_boost_kick(DEVFREQ_MSM_LLCCBW);
+	cpu_input_boost_kick_max(250);
+
 	return alpha;
 }
 
