@@ -10760,8 +10760,6 @@ int q6asm_get_asm_topology(int session_id)
 		goto done;
 	}
 	if (session[session_id].ac == NULL) {
-		pr_err("%s: session not created for session id = %d\n",
-		       __func__, session_id);
 		goto done;
 	}
 	topology = (session[session_id].ac)->topology;
