@@ -330,12 +330,6 @@ static inline bool sugov_cpu_is_busy(struct sugov_cpu *sg_cpu) { return false; }
 
 #define NL_RATIO 75
 #define DEFAULT_HISPEED_LOAD 90
-#define DEFAULT_CPU0_UP_RATE_LIMIT_US 500
-#define DEFAULT_CPU0_DOWN_RATE_LIMIT_US 20000
-#define DEFAULT_CPU4_UP_RATE_LIMIT_US 500
-#define DEFAULT_CPU4_DOWN_RATE_LIMIT_US 20000
-#define DEFAULT_CPU7_UP_RATE_LIMIT_US 500
-#define DEFAULT_CPU7_DOWN_RATE_LIMIT_US 20000
 
 static void sugov_update_single(struct update_util_data *hook, u64 time,
 				unsigned int flags)
@@ -815,34 +809,13 @@ static int sugov_init(struct cpufreq_policy *policy)
 		ret = -ENOMEM;
 		goto stop_kthread;
 	}
+
 	tunables->up_rate_limit_us =
-				500;
+				cpufreq_policy_transition_delay_us(policy);
 	tunables->down_rate_limit_us =
-				20000;
+				cpufreq_policy_transition_delay_us(policy);
 
 	tunables->iowait_boost_enable = true;
-
-	/**
-	*
-	* This values are selected to be used on sm8150 common devices, but tunned consider thermal throttling on the Xiaomi Cepheus
-	*
-	**/
-	
-	switch (policy->cpu) {
-	default:
-	case 0:
-        tunables->up_rate_limit_us = DEFAULT_CPU0_UP_RATE_LIMIT_US;
-        tunables->down_rate_limit_us = DEFAULT_CPU0_DOWN_RATE_LIMIT_US;
-	break;
-	case 4:
-        tunables->up_rate_limit_us = DEFAULT_CPU4_UP_RATE_LIMIT_US;
-        tunables->down_rate_limit_us = DEFAULT_CPU4_DOWN_RATE_LIMIT_US;
-	break;
-	case 7:
-        tunables->up_rate_limit_us = DEFAULT_CPU7_UP_RATE_LIMIT_US;
-        tunables->down_rate_limit_us = DEFAULT_CPU7_DOWN_RATE_LIMIT_US;
-	break;
-	}
 
 	policy->governor_data = sg_policy;
 	sg_policy->tunables = tunables;
