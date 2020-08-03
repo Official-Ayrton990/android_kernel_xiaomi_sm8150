@@ -194,7 +194,7 @@ static inline int dentry_string_cmp(const unsigned char *cs, const unsigned char
 	unsigned long a,b,mask;
 
 	for (;;) {
-		a = read_word_at_a_time(cs);
+		a = *(unsigned long *)cs;
 		b = load_unaligned_zeropad(ct);
 		if (tcount < sizeof(unsigned long))
 			break;
