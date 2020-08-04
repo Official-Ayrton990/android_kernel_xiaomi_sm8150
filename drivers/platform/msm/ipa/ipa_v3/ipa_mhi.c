@@ -1,4 +1,4 @@
-/* Copyright (c) 2015-2019 The Linux Foundation. All rights reserved.
+/* Copyright (c) 2015-2020 The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -20,7 +20,6 @@
 #include <linux/ipa_mhi.h>
 #include "../ipa_common_i.h"
 #include "ipa_i.h"
-#include "ipa_qmi_service.h"
 
 #define IPA_MHI_DRV_NAME "ipa_mhi"
 
@@ -60,8 +59,8 @@
 #define IPA_MHI_FUNC_EXIT() \
 	IPA_MHI_DBG("EXIT\n")
 
-#define IPA_MHI_MAX_UL_CHANNELS 1
-#define IPA_MHI_MAX_DL_CHANNELS 2
+#define IPA_MHI_MAX_UL_CHANNELS 2
+#define IPA_MHI_MAX_DL_CHANNELS 3
 
 /* bit #40 in address should be asserted for MHI transfers over pcie */
 #define IPA_MHI_HOST_ADDR_COND(addr) \
@@ -486,43 +485,18 @@ int ipa3_connect_mhi_pipe(struct ipa_mhi_connect_params_internal *in,
 			res);
 		goto fail_start_channel;
 	}
-
-	res = ipa3_enable_data_path(ipa_ep_idx);
-	if (res) {
-		IPA_MHI_ERR("enable data path failed res=%d clnt=%d.\n", res,
-			ipa_ep_idx);
-		goto fail_ep_cfg;
-	}
-
-	if (!ep->skip_ep_cfg) {
-		if (ipa3_cfg_ep(ipa_ep_idx, &in->sys->ipa_ep_cfg)) {
-			IPAERR("fail to configure EP.\n");
-			goto fail_ep_cfg;
-		}
-		if (ipa3_cfg_ep_status(ipa_ep_idx, &ep->status)) {
-			IPAERR("fail to configure status of EP.\n");
-			goto fail_ep_cfg;
-		}
-		IPA_MHI_DBG("ep configuration successful\n");
-	} else {
-		IPA_MHI_DBG("skipping ep configuration\n");
-	}
-
 	*clnt_hdl = ipa_ep_idx;
 
 	if (!ep->skip_ep_cfg && IPA_CLIENT_IS_PROD(client))
 		ipa3_install_dflt_flt_rules(ipa_ep_idx);
 
 	ipa3_ctx->skip_ep_cfg_shadow[ipa_ep_idx] = ep->skip_ep_cfg;
-	IPA_MHI_DBG("client %d (ep: %d) connected\n", client,
-		ipa_ep_idx);
+	IPA_MHI_DBG("client %d (ep: %d) connected\n", client, ipa_ep_idx);
 
 	IPA_MHI_FUNC_EXIT();
 
 	return 0;
 
-fail_ep_cfg:
-	ipa3_disable_data_path(ipa_ep_idx);
 fail_start_channel:
 	memset(ep, 0, offsetof(struct ipa3_ep_context, sys));
 	return -EPERM;
@@ -645,6 +619,9 @@ int ipa3_mhi_resume_channels_internal(enum ipa_client_type client,
 
 		/* Use GSI update API to not affect non-SWI fields
 		 * inside the scratch while in suspend-resume operation
+		 */
+		/* polling_mode bit remains unchanged for mhi_v2 format,
+		 * no update needed for this effort
 		 */
 		res = gsi_update_mhi_channel_scratch(
 			ep->gsi_chan_hdl, ch_scratch.mhi);
