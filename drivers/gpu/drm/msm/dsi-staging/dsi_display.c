@@ -6460,8 +6460,8 @@ int dsi_display_get_modes(struct dsi_display *display,
 
 	num_dfps_rates = !dfps_caps.dfps_support ? 1 : dfps_caps.dfps_list_len;
 
-	panel_mode_count = display->panel->num_timing_nodes;
-	if (timing_override >= panel_mode_count) {
+	timing_mode_count = display->panel->num_timing_nodes;
+	if (timing_override >= timing_mode_count) {
 		pr_warn("[%s] ignoring invalid cmdline timing override %d\n",
 			display->name, timing_override);
 		timing_override = 0;
@@ -6477,7 +6477,7 @@ int dsi_display_get_modes(struct dsi_display *display,
 		if (mode_idx != timing_override)
 			continue;
 
-		memset(&panel_mode, 0, sizeof(panel_mode));
+		memset(&display_mode, 0, sizeof(display_mode));
 
 		rc = dsi_panel_get_mode(display->panel, mode_idx,
 						&display_mode,
