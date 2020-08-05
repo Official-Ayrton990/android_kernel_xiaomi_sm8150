@@ -16,4 +16,8 @@ bool wg_ratelimiter_allow(struct sk_buff *skb, struct net *net);
 bool wg_ratelimiter_selftest(void);
 #endif
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 21, 0)
+#define totalram_pages() totalram_pages
+#endif
+
 #endif /* _WG_RATELIMITER_H */
