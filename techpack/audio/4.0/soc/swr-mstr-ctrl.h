@@ -26,7 +26,6 @@
 #define SWR_ROW_48		0
 #define SWR_ROW_50		1
 #define SWR_ROW_64		3
-#define SWR_COL_04		1 /* Cols = 4 */
 #define SWR_MAX_COL		7 /* Cols = 16 */
 #define SWR_MIN_COL		0 /* Cols = 2 */
 
@@ -43,7 +42,7 @@
 
 #define SWR_MAX_CH_PER_PORT 8
 
-#define SWRM_NUM_AUTO_ENUM_SLAVES    6
+#define SWR_MAX_SLAVE_DEVICES 11
 
 enum {
 	SWR_MSTR_PAUSE,
@@ -82,6 +81,7 @@ struct swrm_mports {
 	bool port_en;
 	u8 ch_en;
 	u8 req_ch;
+	u8 ch_rate;
 	u8 offset1;
 	u8 offset2;
 	u8 sinterval;
@@ -91,7 +91,6 @@ struct swrm_mports {
 	u8 blk_pack_mode;
 	u8 word_length;
 	u8 lane_ctrl;
-	u32 ch_rate;
 };
 
 struct swrm_port_type {
@@ -126,7 +125,6 @@ struct swr_mstr_ctrl {
 	struct mutex reslock;
 	struct mutex pm_lock;
 	struct mutex irq_lock;
-	struct mutex ssr_lock;
 	u32 swrm_base_reg;
 	char __iomem *swrm_dig_base;
 	char __iomem *swrm_hctl_reg;

@@ -2250,8 +2250,7 @@ static int fill_cmi_header(struct cmi_hdr *hdr,
 			   u16 opcode, bool obm_flag)
 {
 	/* sanitize the data */
-	if (hdr == NULL ||
-	    !IS_VALID_SESSION_ID(session_id) ||
+	if (!IS_VALID_SESSION_ID(session_id) ||
 	    !IS_VALID_SERVICE_ID(service_id) ||
 	    !IS_VALID_PLD_SIZE(payload_size)) {
 		pr_err("Invalid header creation request\n");

@@ -21,6 +21,7 @@
 
 #ifdef CONFIG_TAS2557_CODEC
 
+#define DEBUG
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/init.h>
