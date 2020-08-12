@@ -30,7 +30,7 @@ DLKM_DIR := ./device/qcom/common/dlkm
 KBUILD_OPTIONS := $(RMNET_PERF_BLD_DIR)
 
 $(warning $(DLKM_DIR))
-include $(DLKM_DIR)/AndroidKernelModule.mk
+# include $(DLKM_DIR)/AndroidKernelModule.mk
 
 endif #End of check for target
 endif #End of Check for qssi target
