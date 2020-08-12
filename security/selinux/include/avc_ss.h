@@ -8,6 +8,7 @@
 #define _SELINUX_AVC_SS_H_
 
 #include "flask.h"
+#include "avc_ss_reset.h"
 
 int avc_ss_reset(u32 seqno);
 

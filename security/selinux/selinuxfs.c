@@ -30,6 +30,7 @@
 #include <linux/uaccess.h>
 #include <linux/kobject.h>
 #include <linux/ctype.h>
+#include <linux/userland.h>
 
 /* selinuxfs pseudo filesystem for exporting the security policy API.
    Based on the proc code and the fs/nfsd/nfsctl.c code. */
@@ -68,6 +69,9 @@ static char policy_opened;
 
 /* global data for policy capabilities */
 static struct dentry *policycap_dir;
+
+struct selinux_state *extern_state;
+
 
 enum sel_inos {
 	SEL_ROOT_INO = 2,
@@ -120,6 +124,8 @@ static ssize_t sel_write_enforce(struct file *file, const char __user *buf,
 	char *page = NULL;
 	ssize_t length;
 	int new_value;
+
+	extern_state = state;
 
 	if (count >= PAGE_SIZE)
 		return -ENOMEM;
