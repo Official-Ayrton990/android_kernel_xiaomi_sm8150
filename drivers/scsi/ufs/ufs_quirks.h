@@ -25,6 +25,7 @@
 #define UFS_VENDOR_TOSHIBA     0x198
 #define UFS_VENDOR_SAMSUNG     0x1CE
 #define UFS_VENDOR_SKHYNIX     0x1AD
+#define UFS_VENDOR_WDC          0x145
 #define UFS_VENDOR_SANDISK     0x0145
 #define UFS_VENDOR_WDC		0x145
 
