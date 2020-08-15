@@ -1200,7 +1200,7 @@ static int core_ctl_isolation_dead_cpu(unsigned int cpu)
 }
 
 /* ============================ init code ============================== */
-
+#if 0
 static struct cluster_data *find_cluster_by_first_cpu(unsigned int first_cpu)
 {
 	unsigned int i;
@@ -1306,3 +1306,4 @@ static int __init core_ctl_init(void)
 }
 
 late_initcall(core_ctl_init);
+#endif
