@@ -2103,13 +2103,6 @@ static void dsi_panel_dealloc_cmd_packets(struct dsi_panel_cmd_set *set)
 	kfree(set->cmds);
 }
 
-static void dsi_panel_destroy_cmd_packets(struct dsi_panel_cmd_set *set)
-{
-	dsi_panel_destroy_cmds_packets_buf(set);
-	kfree(set->cmds);
-	set->count = 0;
-}
-
 static int dsi_panel_alloc_cmd_packets(struct dsi_panel_cmd_set *cmd,
 					u32 packet_count)
 {
