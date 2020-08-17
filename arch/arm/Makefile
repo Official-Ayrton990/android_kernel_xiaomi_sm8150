@@ -13,6 +13,10 @@
 # Ensure linker flags are correct
 LDFLAGS		:=
 
+ifeq ($(CONFIG_BUILD_ARM64_DT_OVERLAY),y)
+export DTC_FLAGS := -@
+endif
+
 LDFLAGS_vmlinux	:=-p --no-undefined -X --pic-veneer
 ifeq ($(CONFIG_CPU_ENDIAN_BE8),y)
 LDFLAGS_vmlinux	+= --be8
@@ -132,6 +136,10 @@ endif
 else
 CFLAGS_ISA	:=$(call cc-option,-marm,) $(AFLAGS_NOWARN)
 AFLAGS_ISA	:=$(CFLAGS_ISA)
+endif
+
+ifeq ($(CONFIG_MODULES_USE_LONG_CALLS),y)
+CFLAGS_MODULE	+= -mlong-calls
 endif
 
 # Need -Uarm for gcc < 3.x
