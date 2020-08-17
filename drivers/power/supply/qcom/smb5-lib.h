@@ -670,13 +670,10 @@ struct smb_charger {
 	int			init_thermal_ua;
 	u32			comp_clamp_level;
 	bool			hvdcp3_standalone_config;
-<<<<<<< HEAD
-=======
 	int			wls_icl_ua;
 	bool			dpdm_enabled;
 	bool			apsd_ext_timeout;
 	bool			qc3p5_detected;
->>>>>>> b963ffed1d0101931f0d4cc04bb649b66dfd76c0
 
 	/* workaround flag */
 	u32			wa_flags;
