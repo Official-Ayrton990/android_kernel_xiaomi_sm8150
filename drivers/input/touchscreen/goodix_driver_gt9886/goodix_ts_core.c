@@ -1248,13 +1248,6 @@ static int goodix_ts_gpio_setup(struct goodix_ts_core *core_data)
 	return 0;
 }
 
-static ssize_t gtp_touch_suspend_notify_show(struct device *dev,
-						struct device_attribute *attr,
-						char *buf)
-{
-	return snprintf(buf, PAGE_SIZE, "%d\n", !!atomic_read(&goodix_core_data->suspend_stat));
-}
-
 static ssize_t gtp_fod_test_store(struct device *dev,
 				struct device_attribute *attr,
 				const char *buf, size_t count)
@@ -1318,9 +1311,6 @@ static DEVICE_ATTR(fod_status, (S_IRUGO | S_IWUSR | S_IWGRP),
 
 static DEVICE_ATTR(fod_test, (S_IRUGO | S_IWUSR | S_IWGRP),
 		NULL, gtp_fod_test_store);
-
-static DEVICE_ATTR(touch_suspend_notify, (S_IRUGO | S_IRGRP),
-			gtp_touch_suspend_notify_show, NULL);
 
 static void goodix_switch_mode_work(struct work_struct *work)
 {
@@ -1740,9 +1730,6 @@ out:
 	release_all_touches(core_data);
 	core_data->ts_event.event_data.touch_data.touch_num = 0;
 
-	sysfs_notify(&core_data->gtp_touch_dev->kobj, NULL,
-		     "touch_suspend_notify");
-
 	mutex_unlock(&core_data->work_stat);
 
 	ts_info("Suspend end");
@@ -1829,9 +1816,6 @@ out:
 		release_all_touches(core_data);
 	}
 	core_data->sleep_finger = 0;
-
-	sysfs_notify(&core_data->gtp_touch_dev->kobj, NULL,
-		     "touch_suspend_notify");
 
 	mutex_unlock(&core_data->work_stat);
 
@@ -2698,12 +2682,6 @@ static int goodix_ts_probe(struct platform_device *pdev)
 		goto out;
 	}
 	dev_set_drvdata(core_data->gtp_touch_dev, core_data);
-
-	if (sysfs_create_file(&core_data->gtp_touch_dev->kobj,
-			&dev_attr_touch_suspend_notify.attr)) {
-		ts_err("Failed to create sysfs group!\n");
-		goto out;
-	}
 
 	if (sysfs_create_file(&core_data->gtp_touch_dev->kobj,
 				&dev_attr_fod_status.attr)) {
