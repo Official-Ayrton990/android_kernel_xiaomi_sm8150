@@ -1,4 +1,4 @@
-/* Copyright (c) 2012-2019, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2012-2020, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -82,6 +82,9 @@ const char *ipa3_event_name[] = {
 	__stringify(IPA_GSB_DISCONNECT),
 	__stringify(IPA_COALESCE_ENABLE),
 	__stringify(IPA_COALESCE_DISABLE),
+	__stringify(IPA_PDN_DEFAULT_MODE_CONFIG),
+	__stringify(IPA_PDN_IP_COLLISION_MODE_CONFIG),
+	__stringify(IPA_PDN_IP_PASSTHROUGH_MODE_CONFIG),
 };
 
 const char *ipa3_hdr_l2_type_name[] = {
@@ -2466,6 +2469,22 @@ done:
 	return simple_read_from_buffer(ubuf, count, ppos, dbg_buff, cnt);
 }
 
+static ssize_t ipa3_read_app_clk_vote(
+	struct file *file,
+	char __user *ubuf,
+	size_t count,
+	loff_t *ppos)
+{
+	int cnt =
+		scnprintf(
+			dbg_buff,
+			IPA_MAX_MSG_LEN,
+			"%u\n",
+			ipa3_ctx->app_clock_vote.cnt);
+
+	return simple_read_from_buffer(ubuf, count, ppos, dbg_buff, cnt);
+}
+
 static void ipa_dump_status(struct ipahal_pkt_status *status)
 {
 	IPA_DUMP_STATUS_FIELD(status_opcode);
@@ -2764,7 +2783,11 @@ static const struct ipa3_debugfs_file debugfs_files[] = {
 		"usb_gsi_stats", IPA_READ_ONLY_MODE, NULL, {
 			.read = ipa3_read_usb_gsi_stats,
 		}
-	}
+	}, {
+		"app_clk_vote_cnt", IPA_READ_ONLY_MODE, NULL, {
+			.read = ipa3_read_app_clk_vote,
+		}
+	},
 };
 
 void ipa3_debugfs_pre_init(void)

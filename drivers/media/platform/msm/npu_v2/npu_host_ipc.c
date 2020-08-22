@@ -1,4 +1,4 @@
-/* Copyright (c) 2018-2019, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2018-2020, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -219,7 +219,7 @@ static int ipc_queue_read(struct npu_device *npu_dev,
 		 */
 		queue.qhdr_rx_req = 1;
 		*is_tx_req_set = 0;
-		status = -EPERM;
+		status = -EIO;
 		goto exit;
 	}
 
@@ -234,12 +234,8 @@ static int ipc_queue_read(struct npu_device *npu_dev,
 			target_que,
 			packet_size);
 
-	if (packet_size == 0) {
-		status = -EPERM;
-		goto exit;
-	}
-
-	if (packet_size > NPU_IPC_BUF_LENGTH) {
+	if ((packet_size == 0) ||
+		(packet_size > NPU_IPC_BUF_LENGTH)) {
 		NPU_ERR("Invalid packet size %d\n", packet_size);
 		status = -EINVAL;
 		goto exit;
@@ -315,7 +311,7 @@ static int ipc_queue_write(struct npu_device *npu_dev,
 	packet_size = (*(uint32_t *)packet);
 	if (packet_size == 0) {
 		/* assign failed status and return */
-		status = -EPERM;
+		status = -EINVAL;
 		goto exit;
 	}
 
@@ -411,4 +407,14 @@ int npu_host_ipc_pre_init(struct npu_device *npu_dev)
 int npu_host_ipc_post_init(struct npu_device *npu_dev)
 {
 	return 0;
+}
+
+int npu_host_get_ipc_queue_size(struct npu_device *npu_dev, uint32_t q_idx)
+{
+	if (q_idx >= ARRAY_SIZE(npu_q_setup)) {
+		NPU_ERR("Invalid ipc queue index %d\n", q_idx);
+		return -EINVAL;
+	}
+
+	return npu_q_setup[q_idx].size;
 }

@@ -1,4 +1,4 @@
-/* Copyright (c) 2019 The Linux Foundation. All rights reserved.
+/* Copyright (c) 2019-2020 The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -103,6 +103,11 @@ static int ipa_eth_init_device(struct ipa_eth_device *eth_dev)
 		return rc;
 	}
 
+	rc = ipa_eth_uc_stats_init(eth_dev);
+	if (rc)
+		ipa_eth_dev_err(eth_dev,
+			"Failed to init uC stats monitor, continuing.");
+
 	ipa_eth_dev_log(eth_dev, "Initialized device");
 
 	eth_dev->of_state = IPA_ETH_OF_ST_INITED;
@@ -119,6 +124,11 @@ static int ipa_eth_deinit_device(struct ipa_eth_device *eth_dev)
 
 	if (eth_dev->of_state != IPA_ETH_OF_ST_INITED)
 		return -EFAULT;
+
+	rc = ipa_eth_uc_stats_deinit(eth_dev);
+	if (rc)
+		ipa_eth_dev_err(eth_dev,
+			"Failed to deinit uC stats monitor, continuing.");
 
 	rc = ipa_eth_offload_deinit(eth_dev);
 	if (rc) {
@@ -180,12 +190,24 @@ static int ipa_eth_start_device(struct ipa_eth_device *eth_dev)
 		return rc;
 	}
 
+	/* We cannot register the interface during offload init phase because
+	 * it will cause IPACM to install IPA filter rules when it receives a
+	 * link-up netdev event, even if offload path is not started and/or no
+	 * ECM_CONNECT event is received from the driver. Since installing IPA
+	 * filter rules while offload path is stopped can cause DL data stall,
+	 * register the interface only after the offload path is started.
+	 */
 	rc = ipa_eth_ep_register_interface(eth_dev);
 	if (rc) {
 		ipa_eth_dev_err(eth_dev, "Failed to register EP interface");
 		eth_dev->of_state = IPA_ETH_OF_ST_ERROR;
 		return rc;
 	}
+
+	rc = ipa_eth_uc_stats_start(eth_dev);
+	if (rc)
+		ipa_eth_dev_err(eth_dev,
+			"Failed to start uC stats monitor, continuing.");
 
 	ipa_eth_dev_log(eth_dev, "Started device");
 
@@ -203,6 +225,11 @@ static int ipa_eth_stop_device(struct ipa_eth_device *eth_dev)
 
 	if (eth_dev->of_state != IPA_ETH_OF_ST_STARTED)
 		return -EFAULT;
+
+	rc = ipa_eth_uc_stats_stop(eth_dev);
+	if (rc)
+		ipa_eth_dev_err(eth_dev,
+			"Failed to stop uC stats monitor, continuing.");
 
 	rc = ipa_eth_ep_unregister_interface(eth_dev);
 	if (rc) {
@@ -279,11 +306,19 @@ static void ipa_eth_device_refresh(struct ipa_eth_device *eth_dev)
 			return;
 		}
 
+		if (ipa_eth_net_watch_upper(eth_dev))
+			ipa_eth_dev_err(eth_dev,
+					"Failed to watch upper interfaces");
+
 		if (ipa_eth_pm_vote_bw(eth_dev))
 			ipa_eth_dev_err(eth_dev,
 					"Failed to vote for required BW");
 	} else {
 		ipa_eth_dev_log(eth_dev, "Start is disallowed for the device");
+
+		if (ipa_eth_net_unwatch_upper(eth_dev))
+			ipa_eth_dev_err(eth_dev,
+					"Failed to unwatch upper interfaces");
 
 		if (eth_dev->of_state == IPA_ETH_OF_ST_STARTED) {
 			IPA_ACTIVE_CLIENTS_INC_SIMPLE();
@@ -322,8 +357,7 @@ static void ipa_eth_device_refresh_work(struct work_struct *work)
 
 void ipa_eth_device_refresh_sched(struct ipa_eth_device *eth_dev)
 {
-	if (present(eth_dev))
-		queue_work(ipa_eth_wq, &eth_dev->refresh);
+	queue_work(ipa_eth_wq, &eth_dev->refresh);
 }
 
 void ipa_eth_device_refresh_sync(struct ipa_eth_device *eth_dev)
@@ -396,6 +430,28 @@ static int ipa_eth_device_complete_reset(
 	return rc;
 }
 
+static int ipa_eth_device_event_add_macsec(
+	struct ipa_eth_device *eth_dev, void *data)
+{
+	struct net_device *net_dev = data;
+
+	ipa_eth_dev_log(eth_dev,
+		"Network device added MACSec interface %s", net_dev->name);
+
+	return 0;
+}
+
+static int ipa_eth_device_event_del_macsec(
+	struct ipa_eth_device *eth_dev, void *data)
+{
+	struct net_device *net_dev = data;
+
+	ipa_eth_dev_log(eth_dev,
+		"Network device removed MACSec interface %s", net_dev->name);
+
+	return 0;
+}
+
 /**
  * ipa_eth_device_notify() - Notifies a device event to the offload sub-system
  * @eth_dev: Device for which the event is generated
@@ -419,8 +475,14 @@ int ipa_eth_device_notify(struct ipa_eth_device *eth_dev,
 	case IPA_ETH_DEV_RESET_COMPLETE:
 		rc = ipa_eth_device_complete_reset(eth_dev, data);
 		break;
+	case IPA_ETH_DEV_ADD_MACSEC_IF:
+		rc = ipa_eth_device_event_add_macsec(eth_dev, data);
+		break;
+	case IPA_ETH_DEV_DEL_MACSEC_IF:
+		rc = ipa_eth_device_event_del_macsec(eth_dev, data);
+		break;
 	default:
-		ipa_eth_dev_bug(eth_dev, "Unknown event");
+		ipa_eth_dev_log(eth_dev, "Unknown event %d", event);
 		break;
 	}
 
@@ -468,6 +530,22 @@ static void ipa_eth_ipa_ready_cb(void *data)
 	ipa_eth_global_refresh_sched();
 }
 
+static int ipa_eth_panic_notifier(struct notifier_block *nb,
+	unsigned long event, void *ptr)
+{
+	struct ipa_eth_device_private *ipa_priv = container_of(nb,
+				struct ipa_eth_device_private, panic_nb);
+	struct ipa_eth_device *eth_dev = ipa_priv->eth_dev;
+
+	if (!reachable(eth_dev))
+		return -ENODEV;
+
+	ipa_eth_net_save_regs(eth_dev);
+	ipa_eth_offload_save_regs(eth_dev);
+
+	return NOTIFY_DONE;
+}
+
 /*
  * ipa_eth_alloc_device() - Allocate an ipa_eth_device structure and initialize
  *                          all common fields
@@ -485,15 +563,22 @@ struct ipa_eth_device *ipa_eth_alloc_device(
 	struct ipa_eth_net_driver *nd)
 {
 	struct ipa_eth_device *eth_dev;
+	struct ipa_eth_device_private *ipa_priv;
 
 	if (!dev || !nd) {
 		ipa_eth_err("Invalid device or net driver");
 		return NULL;
 	}
 
-	eth_dev = devm_kzalloc(dev, sizeof(*eth_dev), GFP_KERNEL);
+	eth_dev = kzalloc(sizeof(*eth_dev), GFP_KERNEL);
 	if (!eth_dev)
 		return NULL;
+
+	ipa_priv = kzalloc(sizeof(*ipa_priv), GFP_KERNEL);
+	if (!ipa_priv) {
+		kfree(eth_dev);
+		return NULL;
+	}
 
 	eth_dev->dev = dev;
 	eth_dev->nd = nd;
@@ -512,6 +597,17 @@ struct ipa_eth_device *ipa_eth_alloc_device(
 
 	eth_dev->init = eth_dev->start = !ipa_eth_noauto;
 
+	/* Initialize private data */
+
+	ipa_priv->eth_dev = eth_dev;
+
+	mutex_init(&ipa_priv->upper_mutex);
+	INIT_LIST_HEAD(&ipa_priv->upper_devices);
+
+	ipa_priv->panic_nb.notifier_call = ipa_eth_panic_notifier;
+
+	eth_dev->ipa_priv = ipa_priv;
+
 	return eth_dev;
 }
 
@@ -522,10 +618,8 @@ struct ipa_eth_device *ipa_eth_alloc_device(
  */
 void ipa_eth_free_device(struct ipa_eth_device *eth_dev)
 {
-	struct device *dev = eth_dev->dev;
-
-	memset(eth_dev, 0, sizeof(*eth_dev));
-	devm_kfree(dev, eth_dev);
+	kzfree(eth_dev->ipa_priv);
+	kzfree(eth_dev);
 }
 
 /*
@@ -541,8 +635,12 @@ void ipa_eth_free_device(struct ipa_eth_device *eth_dev)
 int ipa_eth_register_device(struct ipa_eth_device *eth_dev)
 {
 	int rc;
+	struct ipa_eth_device_private *ipa_priv = eth_dev->ipa_priv;
 
 	ipa_eth_dev_log(eth_dev, "Registering new device");
+
+	(void) atomic_notifier_chain_register(
+			&panic_notifier_list, &ipa_priv->panic_nb);
 
 	rc = ipa_eth_net_open_device(eth_dev);
 	if (rc) {
@@ -605,6 +703,8 @@ static void ipa_eth_unpair_device(struct ipa_eth_device *eth_dev)
  */
 void ipa_eth_unregister_device(struct ipa_eth_device *eth_dev)
 {
+	struct ipa_eth_device_private *ipa_priv = eth_dev->ipa_priv;
+
 	ipa_eth_dev_log(eth_dev, "Unregistering device");
 
 	/* Set REMOVING flag so that device refreshes do not happen */
@@ -644,6 +744,9 @@ void ipa_eth_unregister_device(struct ipa_eth_device *eth_dev)
 	 * device and removed/disabled all event sources.
 	 */
 	clear_bit(IPA_ETH_DEV_F_REMOVING, &eth_dev->flags);
+
+	(void) atomic_notifier_chain_unregister(
+			&panic_notifier_list, &ipa_priv->panic_nb);
 
 	ipa_eth_dev_log(eth_dev, "Device unregistered");
 }
@@ -727,36 +830,6 @@ void ipa_eth_unregister_offload_driver(struct ipa_eth_offload_driver *od)
 }
 EXPORT_SYMBOL(ipa_eth_unregister_offload_driver);
 
-static int ipa_eth_panic_save_device(struct ipa_eth_device *eth_dev)
-{
-	if (!reachable(eth_dev))
-		return -ENODEV;
-
-	ipa_eth_net_save_regs(eth_dev);
-	ipa_eth_offload_save_regs(eth_dev);
-
-	return 0;
-}
-
-static int ipa_eth_panic_notifier(struct notifier_block *nb,
-	unsigned long event, void *ptr)
-{
-	struct ipa_eth_device *eth_dev;
-
-	mutex_lock(&ipa_eth_devices_lock);
-
-	list_for_each_entry(eth_dev, &ipa_eth_devices, device_list)
-		ipa_eth_panic_save_device(eth_dev);
-
-	mutex_unlock(&ipa_eth_devices_lock);
-
-	return NOTIFY_DONE;
-}
-
-static struct notifier_block ipa_eth_panic_nb = {
-	.notifier_call  = ipa_eth_panic_notifier,
-};
-
 static int ipa_eth_pm_notifier_cb(struct notifier_block *nb,
 	unsigned long pm_event, void *unused)
 {
@@ -783,9 +856,6 @@ int ipa_eth_init(void)
 {
 	int rc;
 	unsigned int wq_flags = WQ_UNBOUND | WQ_MEM_RECLAIM;
-
-	(void) atomic_notifier_chain_register(
-			&panic_notifier_list, &ipa_eth_panic_nb);
 
 	rc = ipa_eth_ipc_log_init();
 	if (rc) {
@@ -858,8 +928,6 @@ err_bus:
 err_wq:
 	ipa_eth_ipc_log_cleanup();
 err_ipclog:
-	(void) atomic_notifier_chain_unregister(
-			&panic_notifier_list, &ipa_eth_panic_nb);
 	return rc;
 }
 
@@ -895,7 +963,4 @@ void ipa_eth_exit(void)
 	ipa_eth_wq = NULL;
 
 	ipa_eth_ipc_log_cleanup();
-
-	(void) atomic_notifier_chain_unregister(
-			&panic_notifier_list, &ipa_eth_panic_nb);
 }

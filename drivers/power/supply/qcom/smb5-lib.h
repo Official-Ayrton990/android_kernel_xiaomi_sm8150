@@ -1,4 +1,4 @@
-/* Copyright (c) 2018-2019 The Linux Foundation. All rights reserved.
+/* Copyright (c) 2018-2020 The Linux Foundation. All rights reserved.
  * Copyright (C) 2019 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
@@ -16,6 +16,7 @@
 #include <linux/alarmtimer.h>
 #include <linux/ktime.h>
 #include <linux/types.h>
+#include <linux/timer.h>
 #include <linux/interrupt.h>
 #include <linux/irqreturn.h>
 #include <linux/regulator/driver.h>
@@ -547,6 +548,8 @@ struct smb_charger {
 	struct alarm		moisture_protection_alarm;
 	struct alarm		chg_termination_alarm;
 
+	struct timer_list	apsd_timer;
+
 	struct charger_param	chg_param;
 	/* secondary charger config */
 	bool			sec_pl_present;
@@ -568,6 +571,7 @@ struct smb_charger {
 	bool			ok_to_pd;
 	bool			typec_legacy;
 	bool			typec_irq_en;
+	bool			typec_role_swap_failed;
 
 	/* cached status */
 	bool			system_suspend_supported;
@@ -661,10 +665,18 @@ struct smb_charger {
 	int			cc_soc_ref;
 	int			last_cc_soc;
 	int			dr_mode;
+	int			term_vbat_uv;
 	int			usbin_forced_max_uv;
 	int			init_thermal_ua;
 	u32			comp_clamp_level;
 	bool			hvdcp3_standalone_config;
+<<<<<<< HEAD
+=======
+	int			wls_icl_ua;
+	bool			dpdm_enabled;
+	bool			apsd_ext_timeout;
+	bool			qc3p5_detected;
+>>>>>>> b963ffed1d0101931f0d4cc04bb649b66dfd76c0
 
 	/* workaround flag */
 	u32			wa_flags;
@@ -909,6 +921,7 @@ int smblib_set_prop_rechg_soc_thresh(struct smb_charger *chg,
 				const union power_supply_propval *val);
 void smblib_suspend_on_debug_battery(struct smb_charger *chg);
 int smblib_rerun_apsd_if_required(struct smb_charger *chg);
+void smblib_rerun_apsd(struct smb_charger *chg);
 int smblib_get_prop_fcc_delta(struct smb_charger *chg,
 				union power_supply_propval *val);
 int smblib_get_thermal_threshold(struct smb_charger *chg, u16 addr, int *val);
