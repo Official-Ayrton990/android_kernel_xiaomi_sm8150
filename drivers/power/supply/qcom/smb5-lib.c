@@ -4518,6 +4518,7 @@ int smblib_get_prop_smb_health(struct smb_charger *chg)
 {
 	int rc;
 	int input_present;
+	union power_supply_propval prop = {0, };
 
 	rc = smblib_is_input_present(chg, &input_present);
 	if (rc < 0)
