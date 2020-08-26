@@ -8223,7 +8223,8 @@ static inline bool is_many_wakeup(int sibling_count_hint)
 static int find_energy_efficient_cpu(struct sched_domain *sd,
 				     struct task_struct *p,
 				     int cpu, int prev_cpu,
-				     int sync, bool sync_boost)
+				     int sync, bool sync_boost,
+				     int sibling_count_hint)
 {
 	int use_fbt = sched_feat(FIND_BEST_TARGET);
 	int cpu_iter, eas_cpu_idx = EAS_CPU_NXT;
@@ -8546,7 +8547,8 @@ pick_cpu:
 				      cpu >= cpu_rq(cpu)->rd->mid_cap_orig_cpu;
 
 			new_cpu = find_energy_efficient_cpu(energy_sd, p, cpu,
-						    prev_cpu, sync, sync_boost);
+						    prev_cpu, sync, sync_boost,
+						    sibling_count_hint);
 		}
 
 		/* if we did an energy-aware placement and had no choices available
@@ -13221,7 +13223,7 @@ void check_for_migration(struct rq *rq, struct task_struct *p)
 		raw_spin_lock(&migration_lock);
 		rcu_read_lock();
 		new_cpu = find_energy_efficient_cpu(sd, p, cpu, prev_cpu,
-						    0, false);
+						    0, false, 1);
 		rcu_read_unlock();
 		if ((new_cpu != prev_cpu) && (capacity_orig_of(new_cpu) >
 					capacity_orig_of(prev_cpu))) {
