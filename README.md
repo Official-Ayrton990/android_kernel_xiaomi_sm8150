@@ -8,7 +8,6 @@ These guides can be rendered in a number of formats, like HTML and PDF.
 In order to build the documentation, use ``make htmldocs`` or
 ``make pdfdocs``.
 
-=========================================
 ## Quantic Kernel for MIUI/AOSP Cepheus&Raphael
 
 This kernel is made to work and all AOSP ROMs and MIUI ROMs on the Xiaomi Mi9 Cepheus
@@ -16,10 +15,10 @@ This kernel is made to work on all AOSP LOSFOD ROMs and MIUI ROMS on the Redmi k
 
 NOTES FOR k20 PRO:
 - If you are using this kernel on LOSFOD rom and you face FOD Issues please delete Quantic FOD magisk module
+
 NOTES FOR Mi9:
 - If you are going to use this kernel on HavocOS or roms using OLD Fod implementation, kernel will not be able to read Fingerprint.
 
-=========================================
 
 ## For ROM Builders
 
