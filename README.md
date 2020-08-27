@@ -7,6 +7,7 @@ These guides can be rendered in a number of formats, like HTML and PDF.
 
 In order to build the documentation, use ``make htmldocs`` or
 ``make pdfdocs``.
+
 =========================================
 ## Quantic Kernel for MIUI/AOSP Cepheus&Raphael
 
