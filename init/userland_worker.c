@@ -98,6 +98,11 @@ static void userland_worker(struct work_struct *work)
 	if (!argv)
 		return;
 
+	strcpy(argv[0], "/system/bin/setprop");
+	strcpy(argv[1], "ro.fod.dimlayer.enable");
+	strcpy(argv[2], "false");
+	argv[3] = NULL;
+
 	free_memory(argv, INITIAL_SIZE);
 
 	if (is_enforcing)
