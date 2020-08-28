@@ -11,6 +11,7 @@ In order to build the documentation, use ``make htmldocs`` or
 ## Quantic Kernel for MIUI/AOSP Cepheus&Raphael
 
 This kernel is made to work and all AOSP ROMs and MIUI ROMs on the Xiaomi Mi9 Cepheus
+
 This kernel is made to work on all AOSP LOSFOD ROMs and MIUI ROMS on the Redmi k20 Pro
 
 NOTES FOR k20 PRO:
@@ -30,5 +31,6 @@ To avoid problems of ROM not booting please git checkout PELT and revert the fol
 - 55cb2ffa6e654f50e750d6c8028ad381c0c3090a
 - d7c6ea4efd7f695a552aba7035a26d6b4d349b22
 - 3c947158dc9ca7aad8fc532564d9657f54f5135d
+- eb4b8535bea2dc9fedf6b05a57825a9b976ec20b
 
 This however is not necessary if you are using Clang-11 versions or above.
