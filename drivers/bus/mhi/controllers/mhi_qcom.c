@@ -1,4 +1,4 @@
-/* Copyright (c) 2018-2019, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2018-2020, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -80,9 +80,6 @@ void mhi_deinit_pci_dev(struct mhi_controller *mhi_cntrl)
 	pm_runtime_mark_last_busy(&pci_dev->dev);
 	pm_runtime_dont_use_autosuspend(&pci_dev->dev);
 	pm_runtime_disable(&pci_dev->dev);
-
-	/* reset counter for lpm state changes */
-	mhi_dev->lpm_disable_depth = 0;
 
 	pci_free_irq_vectors(pci_dev);
 	kfree(mhi_cntrl->irq);
@@ -434,89 +431,26 @@ static int mhi_link_status(struct mhi_controller *mhi_cntrl, void *priv)
 /* disable PCIe L1 */
 static int mhi_lpm_disable(struct mhi_controller *mhi_cntrl, void *priv)
 {
-	struct mhi_dev *mhi_dev = priv;
-	struct pci_dev *pci_dev = mhi_dev->pci_dev;
-	int lnkctl = pci_dev->pcie_cap + PCI_EXP_LNKCTL;
-	u8 val;
-	unsigned long flags;
-	int ret = 0;
-
-	spin_lock_irqsave(&mhi_dev->lpm_lock, flags);
-
-	/* L1 is already disabled */
-	if (mhi_dev->lpm_disable_depth) {
-		mhi_dev->lpm_disable_depth++;
-		goto lpm_disable_exit;
-	}
-
-	ret = pci_read_config_byte(pci_dev, lnkctl, &val);
-	if (ret) {
-		MHI_ERR("Error reading LNKCTL, ret:%d\n", ret);
-		goto lpm_disable_exit;
-	}
-
-	/* L1 is not supported, do not increment lpm_disable_depth */
-	if (unlikely(!(val & PCI_EXP_LNKCTL_ASPM_L1)))
-		goto lpm_disable_exit;
-
-	val &= ~PCI_EXP_LNKCTL_ASPM_L1;
-	ret = pci_write_config_byte(pci_dev, lnkctl, val);
-	if (ret) {
-		MHI_ERR("Error writing LNKCTL to disable LPM, ret:%d\n", ret);
-		goto lpm_disable_exit;
-	}
-
-	mhi_dev->lpm_disable_depth++;
-
-lpm_disable_exit:
-	spin_unlock_irqrestore(&mhi_dev->lpm_lock, flags);
-
-	return ret;
+	return mhi_arch_link_lpm_disable(mhi_cntrl);
 }
 
 /* enable PCIe L1 */
 static int mhi_lpm_enable(struct mhi_controller *mhi_cntrl, void *priv)
 {
-	struct mhi_dev *mhi_dev = priv;
-	struct pci_dev *pci_dev = mhi_dev->pci_dev;
-	int lnkctl = pci_dev->pcie_cap + PCI_EXP_LNKCTL;
-	u8 val;
-	unsigned long flags;
-	int ret = 0;
+	return mhi_arch_link_lpm_enable(mhi_cntrl);
+}
 
-	spin_lock_irqsave(&mhi_dev->lpm_lock, flags);
+static void mhi_qcom_store_hwinfo(struct mhi_controller *mhi_cntrl)
+{
+	struct mhi_dev *mhi_dev = mhi_controller_get_devdata(mhi_cntrl);
+	int i;
 
-	/*
-	 * Exit if L1 is not supported or is already disabled or
-	 * decrementing lpm_disable_depth still keeps it above 0
-	 */
-	if (!mhi_dev->lpm_disable_depth)
-		goto lpm_enable_exit;
+	mhi_dev->serial_num = readl_relaxed(mhi_cntrl->bhi +
+			MHI_BHI_SERIAL_NUM_OFFS);
 
-	if (mhi_dev->lpm_disable_depth > 1) {
-		mhi_dev->lpm_disable_depth--;
-		goto lpm_enable_exit;
-	}
-
-	ret = pci_read_config_byte(pci_dev, lnkctl, &val);
-	if (ret) {
-		MHI_ERR("Error reading LNKCTL, ret:%d\n", ret);
-		goto lpm_enable_exit;
-	}
-
-	val |= PCI_EXP_LNKCTL_ASPM_L1;
-	ret = pci_write_config_byte(pci_dev, lnkctl, val);
-	if (ret) {
-		MHI_ERR("Error writing LNKCTL to enable LPM, ret:%d\n", ret);
-		goto lpm_enable_exit;
-	}
-
-	mhi_dev->lpm_disable_depth = 0;
-
-lpm_enable_exit:
-	spin_unlock_irqrestore(&mhi_dev->lpm_lock, flags);
-
-	return ret;
+	for (i = 0; i < ARRAY_SIZE(mhi_dev->oem_pk_hash); i++)
+		mhi_dev->oem_pk_hash[i] = readl_relaxed(mhi_cntrl->bhi +
+			MHI_BHI_OEMPKHASH(i));
 }
 
 static int mhi_qcom_power_up(struct mhi_controller *mhi_cntrl)
@@ -545,14 +479,19 @@ static int mhi_qcom_power_up(struct mhi_controller *mhi_cntrl)
 			return -EIO;
 	}
 
-	/* when coming out of SSR, initial ee state is not valid */
+	/* when coming out of SSR, initial states are not valid */
 	mhi_cntrl->ee = 0;
+	mhi_cntrl->power_down = false;
 
 	ret = mhi_arch_power_up(mhi_cntrl);
 	if (ret)
 		return ret;
 
 	ret = mhi_async_power_up(mhi_cntrl);
+
+	/* Update modem serial Info */
+	if (!ret)
+		mhi_qcom_store_hwinfo(mhi_cntrl);
 
 	/* power up create the dentry */
 	if (mhi_cntrl->dentry) {
@@ -605,6 +544,7 @@ static void mhi_status_cb(struct mhi_controller *mhi_cntrl,
 		if (!ret)
 			mhi_runtime_resume(dev);
 		pm_runtime_put(dev);
+		mhi_arch_mission_mode_enter(mhi_cntrl);
 		break;
 	default:
 		MHI_ERR("Unhandled cb:0x%x\n", reason);
@@ -663,9 +603,45 @@ static ssize_t power_up_store(struct device *dev,
 }
 static DEVICE_ATTR_WO(power_up);
 
+static ssize_t serial_info_show(struct device *dev,
+				struct device_attribute *attr,
+				char *buf)
+{
+	struct mhi_device *mhi_device = to_mhi_device(dev);
+	struct mhi_controller *mhi_cntrl = mhi_device->mhi_cntrl;
+	struct mhi_dev *mhi_dev = mhi_controller_get_devdata(mhi_cntrl);
+	int n;
+
+	n = scnprintf(buf, PAGE_SIZE, "Serial Number:%u\n",
+		      mhi_dev->serial_num);
+
+	return n;
+}
+static DEVICE_ATTR_RO(serial_info);
+
+static ssize_t oempkhash_info_show(struct device *dev,
+				struct device_attribute *attr,
+				char *buf)
+{
+	struct mhi_device *mhi_device = to_mhi_device(dev);
+	struct mhi_controller *mhi_cntrl = mhi_device->mhi_cntrl;
+	struct mhi_dev *mhi_dev = mhi_controller_get_devdata(mhi_cntrl);
+	int i, n = 0;
+
+	for (i = 0; i < ARRAY_SIZE(mhi_dev->oem_pk_hash); i++)
+		n += scnprintf(buf + n, PAGE_SIZE - n, "OEMPKHASH[%d]:%u\n",
+		      i, mhi_dev->oem_pk_hash[i]);
+
+	return n;
+}
+static DEVICE_ATTR_RO(oempkhash_info);
+
+
 static struct attribute *mhi_qcom_attrs[] = {
 	&dev_attr_timeout_ms.attr,
 	&dev_attr_power_up.attr,
+	&dev_attr_serial_info.attr,
+	&dev_attr_oempkhash_info.attr,
 	NULL
 };
 
@@ -741,7 +717,6 @@ static struct mhi_controller *mhi_register_controller(struct pci_dev *pci_dev)
 	mhi_cntrl->of_node = of_node;
 
 	mhi_dev->pci_dev = pci_dev;
-	spin_lock_init(&mhi_dev->lpm_lock);
 
 	/* setup power management apis */
 	mhi_cntrl->status_cb = mhi_status_cb;
@@ -779,8 +754,29 @@ static struct mhi_controller *mhi_register_controller(struct pci_dev *pci_dev)
 	if (ret)
 		goto error_register;
 
+	if (mhi_dev->allow_m1)
+		goto skip_offload;
+
+	mhi_cntrl->offload_wq = alloc_ordered_workqueue("offload_wq",
+			WQ_MEM_RECLAIM | WQ_HIGHPRI);
+	if (!mhi_cntrl->offload_wq)
+		goto error_register;
+
+	INIT_WORK(&mhi_cntrl->reg_write_work, mhi_reg_write_work);
+
+	mhi_cntrl->reg_write_q = kcalloc(REG_WRITE_QUEUE_LEN,
+					sizeof(*mhi_cntrl->reg_write_q),
+					GFP_KERNEL);
+	if (!mhi_cntrl->reg_write_q)
+		goto error_free_wq;
+
+	atomic_set(&mhi_cntrl->write_idx, -1);
+
+skip_offload:
 	return mhi_cntrl;
 
+error_free_wq:
+	destroy_workqueue(mhi_cntrl->offload_wq);
 error_register:
 	mhi_free_controller(mhi_cntrl);
 

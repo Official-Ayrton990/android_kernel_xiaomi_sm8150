@@ -1392,7 +1392,8 @@ static inline void __free_iova(struct dma_iommu_mapping *mapping,
 
 	start = (addr - bitmap_base) >>	PAGE_SHIFT;
 
-	if (addr + size > bitmap_base + mapping_size) {
+	if ((addr + size - 1 > addr) &&
+		(addr + size - 1 > bitmap_base + mapping_size - 1)) {
 		/*
 		 * The address range to be freed reaches into the iova
 		 * range of the next bitmap. This should not happen as
@@ -2494,10 +2495,8 @@ static int arm_iommu_init_mapping(struct device *dev,
 	u64 size = mapping->bits << PAGE_SHIFT;
 	int is_fast = 0;
 
-	if (mapping->init) {
-		kref_get(&mapping->kref);
+	if (mapping->init)
 		return 0;
-	}
 
 	/* currently only 32-bit DMA address space is supported */
 	if (size > DMA_BIT_MASK(32) + 1) {

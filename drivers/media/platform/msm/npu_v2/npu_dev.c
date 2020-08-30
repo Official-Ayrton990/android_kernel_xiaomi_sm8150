@@ -1,4 +1,4 @@
-/* Copyright (c) 2018-2019, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2018-2020, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -13,6 +13,7 @@
 /*
  * Includes
  */
+#include <dt-bindings/msm/msm-bus-ids.h>
 #include <linux/clk.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
@@ -111,8 +112,8 @@ static int npu_of_parse_pwrlevels(struct npu_device *npu_dev,
 static int npu_pwrctrl_init(struct npu_device *npu_dev);
 static int npu_probe(struct platform_device *pdev);
 static int npu_remove(struct platform_device *pdev);
-static int npu_suspend(struct platform_device *dev, pm_message_t state);
-static int npu_resume(struct platform_device *dev);
+static int npu_pm_suspend(struct device *dev);
+static int npu_pm_resume(struct device *dev);
 static int __init npu_init(void);
 static void __exit npu_exit(void);
 
@@ -188,17 +189,17 @@ static const struct of_device_id npu_dt_match[] = {
 	{}
 };
 
+static const struct dev_pm_ops npu_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(npu_pm_suspend, npu_pm_resume)
+};
+
 static struct platform_driver npu_driver = {
 	.probe = npu_probe,
 	.remove = npu_remove,
-#if defined(CONFIG_PM)
-	.suspend = npu_suspend,
-	.resume = npu_resume,
-#endif
 	.driver = {
 		.name = "msm_npu",
 		.of_match_table = npu_dt_match,
-		.pm = NULL,
+		.pm = &npu_pm_ops,
 	},
 };
 
@@ -1310,28 +1311,6 @@ static int npu_exec_network_v2(struct npu_client *client,
 	return ret;
 }
 
-static int npu_process_kevent(struct npu_kevent *kevt)
-{
-	int ret = 0;
-
-	switch (kevt->evt.type) {
-	case MSM_NPU_EVENT_TYPE_EXEC_V2_DONE:
-		ret = copy_to_user((void __user *)kevt->reserved[1],
-			(void *)&kevt->reserved[0],
-			kevt->evt.u.exec_v2_done.stats_buf_size);
-		if (ret) {
-			NPU_ERR("fail to copy to user\n");
-			kevt->evt.u.exec_v2_done.stats_buf_size = 0;
-			ret = -EFAULT;
-		}
-		break;
-	default:
-		break;
-	}
-
-	return ret;
-}
-
 static int npu_receive_event(struct npu_client *client,
 	unsigned long arg)
 {
@@ -1347,7 +1326,7 @@ static int npu_receive_event(struct npu_client *client,
 		kevt = list_first_entry(&client->evt_list,
 			struct npu_kevent, list);
 		list_del(&kevt->list);
-		npu_process_kevent(kevt);
+		npu_process_kevent(client, kevt);
 		ret = copy_to_user(argp, &kevt->evt,
 			sizeof(struct msm_npu_event));
 		if (ret) {
@@ -1462,6 +1441,21 @@ static int npu_get_property(struct npu_client *client,
 		break;
 	case MSM_NPU_PROP_ID_HARDWARE_VERSION:
 		prop.prop_param[0] = npu_dev->hw_version;
+		break;
+	case MSM_NPU_PROP_ID_IPC_QUEUE_INFO:
+		ret = npu_host_get_ipc_queue_size(npu_dev,
+			prop.prop_param[0]);
+		if (ret < 0) {
+			NPU_ERR("Can't get ipc queue %d size\n",
+				prop.prop_param[0]);
+			return ret;
+		}
+
+		prop.prop_param[1] = ret;
+		break;
+	case MSM_NPU_PROP_ID_DRV_FEATURE:
+		prop.prop_param[0] = MSM_NPU_FEATURE_MULTI_EXECUTE |
+			MSM_NPU_FEATURE_ASYNC_EXECUTE;
 		break;
 	default:
 		ret = npu_host_get_fw_property(client->npu_dev, &prop);
@@ -1580,8 +1574,9 @@ static int npu_parse_dt_clock(struct npu_device *npu_dev)
 			sizeof(core_clks[i].clk_name));
 		core_clks[i].clk = devm_clk_get(&pdev->dev, clock_name);
 		if (IS_ERR(core_clks[i].clk)) {
-			NPU_ERR("unable to get clk: %s\n", clock_name);
-			rc = -EINVAL;
+			if (PTR_ERR(core_clks[i].clk) != -EPROBE_DEFER)
+				NPU_ERR("unable to get clk: %s\n", clock_name);
+			rc = PTR_ERR(core_clks[i].clk);
 			break;
 		}
 
@@ -1642,15 +1637,15 @@ regulator_err:
 
 static int npu_parse_dt_bw(struct npu_device *npu_dev)
 {
-	int ret, len;
-	uint32_t ports[2];
+	int ret, len, num_paths, i;
+	uint32_t ports[MAX_PATHS * 2];
 	struct platform_device *pdev = npu_dev->pdev;
 	struct npu_bwctrl *bwctrl = &npu_dev->bwctrl;
 
 	if (of_find_property(pdev->dev.of_node, "qcom,src-dst-ports", &len)) {
 		len /= sizeof(ports[0]);
-		if (len != 2) {
-			NPU_ERR("Unexpected number of ports\n");
+		if (len % 2 || len > ARRAY_SIZE(ports)) {
+			NPU_ERR("Unexpected number of ports %d\n", len);
 			return -EINVAL;
 		}
 
@@ -1660,6 +1655,7 @@ static int npu_parse_dt_bw(struct npu_device *npu_dev)
 			NPU_ERR("Failed to read bw property\n");
 			return ret;
 		}
+		num_paths = len / 2;
 	} else {
 		NPU_ERR("can't find bw property\n");
 		return -EINVAL;
@@ -1672,13 +1668,15 @@ static int npu_parse_dt_bw(struct npu_device *npu_dev)
 	bwctrl->bw_data.name = dev_name(&pdev->dev);
 	bwctrl->bw_data.active_only = false;
 
-	bwctrl->bw_levels[0].vectors[0].src = ports[0];
-	bwctrl->bw_levels[0].vectors[0].dst = ports[1];
-	bwctrl->bw_levels[1].vectors[0].src = ports[0];
-	bwctrl->bw_levels[1].vectors[0].dst = ports[1];
-	bwctrl->bw_levels[0].num_paths = 1;
-	bwctrl->bw_levels[1].num_paths = 1;
-	bwctrl->num_paths = 1;
+	for (i = 0; i < num_paths; i++) {
+		bwctrl->bw_levels[0].vectors[i].src = ports[2 * i];
+		bwctrl->bw_levels[0].vectors[i].dst = ports[2 * i + 1];
+		bwctrl->bw_levels[1].vectors[i].src = ports[2 * i];
+		bwctrl->bw_levels[1].vectors[i].dst = ports[2 * i + 1];
+	}
+	bwctrl->bw_levels[0].num_paths = num_paths;
+	bwctrl->bw_levels[1].num_paths = num_paths;
+	bwctrl->num_paths = num_paths;
 
 	bwctrl->bus_client = msm_bus_scale_register_client(&bwctrl->bw_data);
 	if (!bwctrl->bus_client) {
@@ -1693,7 +1691,7 @@ static int npu_parse_dt_bw(struct npu_device *npu_dev)
 
 int npu_set_bw(struct npu_device *npu_dev, int new_ib, int new_ab)
 {
-	int i, ret;
+	int i, j, ret;
 	struct npu_bwctrl *bwctrl = &npu_dev->bwctrl;
 
 	if (!bwctrl->bus_client) {
@@ -1706,10 +1704,17 @@ int npu_set_bw(struct npu_device *npu_dev, int new_ib, int new_ab)
 
 	i = (bwctrl->cur_idx + 1) % DBL_BUF;
 
-	bwctrl->bw_levels[i].vectors[0].ib = new_ib * MBYTE;
-	bwctrl->bw_levels[i].vectors[0].ab = new_ab / bwctrl->num_paths * MBYTE;
-	bwctrl->bw_levels[i].vectors[1].ib = new_ib * MBYTE;
-	bwctrl->bw_levels[i].vectors[1].ab = new_ab / bwctrl->num_paths * MBYTE;
+	for (j = 0; j < bwctrl->num_paths; j++) {
+		if ((bwctrl->bw_levels[i].vectors[j].dst ==
+			MSM_BUS_SLAVE_CLK_CTL) && (new_ib > 0)) {
+			bwctrl->bw_levels[i].vectors[j].ib = 1;
+			bwctrl->bw_levels[i].vectors[j].ab = 1;
+		} else {
+			bwctrl->bw_levels[i].vectors[j].ib = new_ib * MBYTE;
+			bwctrl->bw_levels[i].vectors[j].ab =
+				new_ab * MBYTE / bwctrl->num_paths;
+		}
+	}
 
 	ret = msm_bus_scale_client_update_request(bwctrl->bus_client, i);
 	if (ret) {
@@ -1723,13 +1728,73 @@ int npu_set_bw(struct npu_device *npu_dev, int new_ib, int new_ab)
 	return ret;
 }
 
+#define NPU_FMAX_THRESHOLD 1000000
+static int npu_adjust_max_power_level(struct npu_device *npu_dev)
+{
+	struct npu_pwrctrl *pwr = &npu_dev->pwrctrl;
+	uint32_t fmax_reg_value, fmax, fmax_pwrlvl;
+	struct npu_pwrlevel *level;
+	int i, j;
+
+	if (!npu_dev->qfprom_io.base)
+		return 0;
+
+	/* search for cal clock index */
+	for (j = 0; j < npu_dev->core_clk_num; j++) {
+		if (!strcmp(npu_dev->core_clks[j].clk_name,
+			"cal_hm0_clk"))
+			break;
+	}
+
+	if (j == npu_dev->core_clk_num) {
+		NPU_WARN("can't find clock cal_hm0_clk\n");
+		return 0;
+	}
+
+	/* Read FMAX info if available */
+	fmax_reg_value = ((npu_qfprom_reg_read(npu_dev,
+		QFPROM_FMAX_REG_OFFSET_1) & QFPROM_FMAX_BITS_MASK_1) >>
+		QFPROM_FMAX_BITS_SHIFT_1) +
+		((npu_qfprom_reg_read(npu_dev,
+		QFPROM_FMAX_REG_OFFSET_2) & QFPROM_FMAX_BITS_MASK_2) <<
+		QFPROM_FMAX_BITS_SHIFT_2);
+	NPU_DBG("fmax_reg_value %x\n", fmax_reg_value);
+
+	if (fmax_reg_value == 0)
+		return 0;
+
+	/* calculate fmax and truncate to MHz */
+	fmax = fmax_reg_value * 19200000 / 2;
+
+	/* search for the nearest power level */
+	for (i = 0; i < pwr->num_pwrlevels; i++) {
+		level = &pwr->pwrlevels[i];
+
+		if (level->clk_freq[j] >= fmax ||
+			((fmax - level->clk_freq[j]) < NPU_FMAX_THRESHOLD)) {
+			fmax_pwrlvl = level->pwr_level;
+			break;
+		}
+	}
+
+	if (i == pwr->num_pwrlevels)
+		return 0;
+
+	if (fmax_pwrlvl < pwr->max_pwrlevel) {
+		pwr->max_pwrlevel = fmax_pwrlvl;
+		NPU_INFO("Adjust max_pwrlevel to %d[%x]\n", fmax_pwrlvl,
+			fmax_reg_value);
+	}
+
+	return 0;
+}
+
 static int npu_of_parse_pwrlevels(struct npu_device *npu_dev,
 		struct device_node *node)
 {
 	struct npu_pwrctrl *pwr = &npu_dev->pwrctrl;
 	struct device_node *child;
 	uint32_t init_level_index = 0, init_power_level;
-	uint32_t fmax, fmax_pwrlvl;
 
 	pwr->num_pwrlevels = 0;
 	pwr->min_pwrlevel = NPU_PWRLEVEL_TURBO_L1;
@@ -1790,29 +1855,7 @@ static int npu_of_parse_pwrlevels(struct npu_device *npu_dev,
 		}
 	}
 
-	/* Read FMAX info if available */
-	if (npu_dev->qfprom_io.base) {
-		fmax = (npu_qfprom_reg_read(npu_dev,
-			QFPROM_FMAX_REG_OFFSET) & QFPROM_FMAX_BITS_MASK) >>
-			QFPROM_FMAX_BITS_SHIFT;
-		NPU_DBG("fmax %x\n", fmax);
-
-		switch (fmax) {
-		case 1:
-		case 2:
-			fmax_pwrlvl = NPU_PWRLEVEL_NOM;
-			break;
-		case 3:
-			fmax_pwrlvl = NPU_PWRLEVEL_SVS_L1;
-			break;
-		default:
-			fmax_pwrlvl = pwr->max_pwrlevel;
-			break;
-		}
-
-		if (fmax_pwrlvl < pwr->max_pwrlevel)
-			pwr->max_pwrlevel = fmax_pwrlvl;
-	}
+	npu_adjust_max_power_level(npu_dev);
 
 	of_property_read_u32(node, "initial-pwrlevel", &init_level_index);
 	NPU_DBG("initial-pwrlevel %d\n", init_level_index);
@@ -1965,6 +2008,10 @@ static int npu_ipcc_bridge_mbox_send_data(struct mbox_chan *chan, void *data)
 	ipcc_mbox_chan->npu_mbox->send_data_pending = true;
 	queue_work(host_ctx->wq, &host_ctx->bridge_mbox_work);
 	spin_unlock_irqrestore(&host_ctx->bridge_mbox_lock, flags);
+
+	if (host_ctx->app_crashed)
+		npu_bridge_mbox_send_data(host_ctx,
+					ipcc_mbox_chan->npu_mbox, NULL);
 
 	return 0;
 }
@@ -2198,7 +2245,7 @@ static int npu_probe(struct platform_device *pdev)
 	npu_dev->pdev = pdev;
 	mutex_init(&npu_dev->dev_lock);
 
-	platform_set_drvdata(pdev, npu_dev);
+	dev_set_drvdata(&pdev->dev, npu_dev);
 	res = platform_get_resource_byname(pdev,
 		IORESOURCE_MEM, "core");
 	if (!res) {
@@ -2293,6 +2340,24 @@ static int npu_probe(struct platform_device *pdev)
 	}
 	NPU_DBG("apss_shared phy address=0x%llx virt=%pK\n",
 		res->start, npu_dev->apss_shared_io.base);
+
+	res = platform_get_resource_byname(pdev,
+		IORESOURCE_MEM, "qfprom_physical");
+	if (!res) {
+		NPU_INFO("unable to get qfprom_physical resource\n");
+	} else {
+		npu_dev->qfprom_io.size = resource_size(res);
+		npu_dev->qfprom_io.phy_addr = res->start;
+		npu_dev->qfprom_io.base = devm_ioremap(&pdev->dev, res->start,
+					npu_dev->qfprom_io.size);
+		if (unlikely(!npu_dev->qfprom_io.base)) {
+			NPU_ERR("unable to map qfprom_physical\n");
+			rc = -ENOMEM;
+			goto error_get_dev_num;
+		}
+		NPU_DBG("qfprom_physical phy address=0x%llx virt=%pK\n",
+			res->start, npu_dev->qfprom_io.base);
+	}
 
 	rc = npu_parse_dt_regulator(npu_dev);
 	if (rc)
@@ -2425,6 +2490,7 @@ error_class_create:
 	unregister_chrdev_region(npu_dev->dev_num, 1);
 	npu_mbox_deinit(npu_dev);
 error_get_dev_num:
+	dev_set_drvdata(&pdev->dev, NULL);
 	return rc;
 }
 
@@ -2442,7 +2508,7 @@ static int npu_remove(struct platform_device *pdev)
 	device_destroy(npu_dev->class, npu_dev->dev_num);
 	class_destroy(npu_dev->class);
 	unregister_chrdev_region(npu_dev->dev_num, 1);
-	platform_set_drvdata(pdev, NULL);
+	dev_set_drvdata(&pdev->dev, NULL);
 	npu_mbox_deinit(npu_dev);
 	msm_bus_scale_unregister_client(npu_dev->bwctrl.bus_client);
 
@@ -2454,17 +2520,27 @@ static int npu_remove(struct platform_device *pdev)
 /*
  * Suspend/Resume
  */
-#if defined(CONFIG_PM)
-static int npu_suspend(struct platform_device *dev, pm_message_t state)
+static int npu_pm_suspend(struct device *dev)
 {
+	struct npu_device *npu_dev;
+
+	npu_dev = dev_get_drvdata(dev);
+	if (!npu_dev) {
+		NPU_ERR("invalid NPU dev\n");
+		return -EINVAL;
+	}
+
+	NPU_DBG("suspend npu\n");
+	npu_host_suspend(npu_dev);
+
 	return 0;
 }
 
-static int npu_resume(struct platform_device *dev)
+static int npu_pm_resume(struct device *dev)
 {
+	NPU_DBG("resume npu\n");
 	return 0;
 }
-#endif
 
 /*
  * Module Entry Points

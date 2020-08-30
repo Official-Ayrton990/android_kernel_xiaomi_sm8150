@@ -1056,6 +1056,8 @@ static enum power_supply_property smb5_usb_props[] = {
 	POWER_SUPPLY_PROP_VOLTAGE_VPH,
 	POWER_SUPPLY_PROP_THERM_ICL_LIMIT,
 	POWER_SUPPLY_PROP_SKIN_HEALTH,
+	POWER_SUPPLY_PROP_APSD_RERUN,
+	POWER_SUPPLY_PROP_APSD_TIMEOUT,
 };
 
 static int smb5_usb_get_prop(struct power_supply *psy,
@@ -1259,6 +1261,12 @@ static int smb5_usb_get_prop(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_SKIN_HEALTH:
 		val->intval = smblib_get_skin_temp_status(chg);
 		break;
+	case POWER_SUPPLY_PROP_APSD_RERUN:
+		val->intval = 0;
+		break;
+	case POWER_SUPPLY_PROP_APSD_TIMEOUT:
+		val->intval = chg->apsd_ext_timeout;
+		break;
 	default:
 		pr_err("get prop %d is not supported in usb\n", psp);
 		rc = -EINVAL;
@@ -1354,6 +1362,11 @@ static int smb5_usb_set_prop(struct power_supply *psy,
 		break;
 	case POWER_SUPPLY_PROP_ADAPTER_CC_MODE:
 		chg->adapter_cc_mode = val->intval;
+		break;
+	case POWER_SUPPLY_PROP_APSD_RERUN:
+		del_timer_sync(&chg->apsd_timer);
+		chg->apsd_ext_timeout = false;
+		smblib_rerun_apsd(chg);
 		break;
 	default:
 		pr_err("set prop %d is not supported\n", psp);
@@ -1596,19 +1609,17 @@ static int smb5_usb_main_get_prop(struct power_supply *psy,
 		break;
 	/* Use this property to report SMB health */
 	case POWER_SUPPLY_PROP_HEALTH:
-		val->intval = smblib_get_prop_smb_health(chg);
+		rc = val->intval = smblib_get_prop_smb_health(chg);
 		break;
 	default:
 		pr_debug("get prop %d is not supported in usb-main\n", psp);
 		rc = -EINVAL;
 		break;
 	}
-	if (rc < 0) {
+	if (rc < 0)
 		pr_debug("Couldn't get prop %d rc = %d\n", psp, rc);
-		return -ENODATA;
-	}
 
-	return 0;
+	return rc;
 }
 
 static int smb5_usb_main_set_prop(struct power_supply *psy,
@@ -1618,6 +1629,7 @@ static int smb5_usb_main_set_prop(struct power_supply *psy,
 	struct smb5 *chip = power_supply_get_drvdata(psy);
 	struct smb_charger *chg = &chip->chg;
 	union power_supply_propval pval = {0, };
+	enum power_supply_type real_chg_type = chg->real_charger_type;
 	int rc = 0, offset_ua = 0;
 
 	switch (psp) {
@@ -1684,7 +1696,8 @@ static int smb5_usb_main_set_prop(struct power_supply *psy,
 		vote_override(chg->usb_icl_votable, CC_MODE_VOTER,
 				(val->intval < 0) ? false : true, val->intval);
 		/* Main ICL updated re-calculate ILIM */
-		if (chg->real_charger_type == POWER_SUPPLY_TYPE_USB_HVDCP_3)
+		if (real_chg_type == POWER_SUPPLY_TYPE_USB_HVDCP_3 ||
+			real_chg_type == POWER_SUPPLY_TYPE_USB_HVDCP_3P5)
 			rerun_election(chg->fcc_votable);
 		break;
 	case POWER_SUPPLY_PROP_COMP_CLAMP_LEVEL:
@@ -2808,18 +2821,21 @@ static int smb5_configure_typec(struct smb_charger *chg)
 		}
 	}
 
-	/* Enable detection of unoriented debug accessory in source mode */
-	rc = smblib_masked_write(chg, DEBUG_ACCESS_SRC_CFG_REG,
-				 EN_UNORIENTED_DEBUG_ACCESS_SRC_BIT,
-				 EN_UNORIENTED_DEBUG_ACCESS_SRC_BIT);
-	if (rc < 0) {
-		dev_err(chg->dev,
-			"Couldn't configure TYPE_C_DEBUG_ACCESS_SRC_CFG_REG rc=%d\n",
-				rc);
-		return rc;
-	}
-
 	if (chg->chg_param.smb_version != PMI632_SUBTYPE) {
+		/*
+		 * Enable detection of unoriented debug
+		 * accessory in source mode
+		 */
+		rc = smblib_masked_write(chg, DEBUG_ACCESS_SRC_CFG_REG,
+					 EN_UNORIENTED_DEBUG_ACCESS_SRC_BIT,
+					 EN_UNORIENTED_DEBUG_ACCESS_SRC_BIT);
+		if (rc < 0) {
+			dev_err(chg->dev,
+				"Couldn't configure TYPE_C_DEBUG_ACCESS_SRC_CFG_REG rc=%d\n",
+					rc);
+			return rc;
+		}
+
 		rc = smblib_masked_write(chg, USBIN_LOAD_CFG_REG,
 				USBIN_IN_COLLAPSE_GF_SEL_MASK |
 				USBIN_AICL_STEP_TIMING_SEL_MASK,
