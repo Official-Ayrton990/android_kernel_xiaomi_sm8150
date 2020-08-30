@@ -1,6 +1,4 @@
-/* Copyright (c) 2018-2019 The Linux Foundation. All rights reserved.
- * Copyright (C) 2019 XiaoMi, Inc.
- *
+/* Copyright (c) 2018-2020 The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -173,6 +171,8 @@ enum hvdcp3_type {
 };
 
 #define ROLE_REVERSAL_DELAY_MS		2000
+
+#define SUSPEND_ICL_MAX USBIN_25MA
 
 enum smb_mode {
 	PARALLEL_MASTER = 0,
