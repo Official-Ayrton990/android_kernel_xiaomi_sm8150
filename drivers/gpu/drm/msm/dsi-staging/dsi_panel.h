@@ -366,7 +366,4 @@ int dsi_panel_set_fod_hbm(struct dsi_panel *panel, bool status);
 
 u32 dsi_panel_get_fod_dim_alpha(struct dsi_panel *panel);
 
-void dsi_panel_calc_dsi_transfer_time(struct dsi_host_common_cfg *config,
-		struct dsi_display_mode *mode, u32 frame_threshold_us);
-
 #endif /* _DSI_PANEL_H_ */

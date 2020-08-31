@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2017 Qualcomm Atheros, Inc. All rights reserved.
+ * Copyright (c) 2016 Qualcomm Atheros, Inc. All rights reserved.
  * Copyright (c) 2015 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -758,7 +758,7 @@ static int ath10k_ahb_probe(struct platform_device *pdev)
 	enum ath10k_hw_rev hw_rev;
 	size_t size;
 	int ret;
-	struct ath10k_bus_params bus_params;
+	u32 chip_id;
 
 	of_id = of_match_device(ath10k_ahb_of_match, &pdev->dev);
 	if (!of_id) {
@@ -814,15 +814,14 @@ static int ath10k_ahb_probe(struct platform_device *pdev)
 
 	ath10k_pci_ce_deinit(ar);
 
-	bus_params.dev_type = ATH10K_DEV_TYPE_LL;
-	bus_params.chip_id = ath10k_ahb_soc_read32(ar, SOC_CHIP_ID_ADDRESS);
-	if (bus_params.chip_id == 0xffffffff) {
+	chip_id = ath10k_ahb_soc_read32(ar, SOC_CHIP_ID_ADDRESS);
+	if (chip_id == 0xffffffff) {
 		ath10k_err(ar, "failed to get chip id\n");
 		ret = -ENODEV;
 		goto err_halt_device;
 	}
 
-	ret = ath10k_core_register(ar, &bus_params);
+	ret = ath10k_core_register(ar, chip_id);
 	if (ret) {
 		ath10k_err(ar, "failed to register driver core: %d\n", ret);
 		goto err_halt_device;

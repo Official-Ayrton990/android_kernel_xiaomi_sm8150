@@ -291,7 +291,6 @@ struct npu_device {
 	struct llcc_slice_desc *sys_cache;
 	uint32_t execute_v2_flag;
 	bool cxlimit_registered;
-	bool npu_dsp_sid_mapped;
 
 	uint32_t hw_version;
 };
