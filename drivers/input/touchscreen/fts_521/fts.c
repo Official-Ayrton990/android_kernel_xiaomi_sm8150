@@ -6085,6 +6085,9 @@ static int fts_probe(struct spi_device *client)
 #ifdef CONFIG_DRM
 	info->notifier = fts_noti_block;
 #endif
+	info->pm_qos_req.type = PM_QOS_REQ_AFFINE_IRQ;
+	info->pm_qos_req.irq = info->client->irq;
+
 	logError(0, "%s Init Core Lib: \n", tag);
 	initCore(info);
 	/* init hardware device */
