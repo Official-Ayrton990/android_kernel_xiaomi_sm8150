@@ -34,7 +34,7 @@ void sendnlmsg(char *message)
 	skb_1 = alloc_skb(len, GFP_KERNEL);
 
 	if (!skb_1) {
-		pr_err("alloc_skb error\n");
+		pr_debug("alloc_skb error\n");
 		return;
 	}
 
@@ -48,7 +48,7 @@ void sendnlmsg(char *message)
 
 	if (!ret) {
 		/*kfree_skb(skb_1);*/
-		pr_err("send msg from kernel to usespace failed ret 0x%x\n", ret);
+		pr_debug("send msg from kernel to usespace failed ret 0x%x\n", ret);
 	}
 }
 
@@ -81,7 +81,7 @@ int netlink_init(void)
 				      &netlink_cfg);
 
 	if (!nl_sk) {
-		pr_err("create netlink socket error\n");
+		pr_debug("create netlink socket error\n");
 		return 1;
 	}
 
@@ -95,6 +95,6 @@ void netlink_exit(void)
 		nl_sk = NULL;
 	}
 
-	pr_info("self module exited\n");
+	pr_debug("self module exited\n");
 }
 

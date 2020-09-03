@@ -32,7 +32,7 @@ int gf_parse_dts(struct gf_dev *gf_dev)
 					     0);
 
 	if (!gpio_is_valid(gf_dev->pwr_gpio)) {
-		pr_info("PWR GPIO is invalid.\n");
+		pr_debug("PWR GPIO is invalid.\n");
 		return -1;
 	}
 
@@ -49,17 +49,17 @@ int gf_parse_dts(struct gf_dev *gf_dev)
 					       "goodix,gpio-reset", 0);
 
 	if (!gpio_is_valid(gf_dev->reset_gpio)) {
-		pr_info("RESET GPIO is invalid.\n");
+		pr_debug("RESET GPIO is invalid.\n");
 		return -EPERM;
 	}
 
 	/*get irq resourece*/
 	gf_dev->irq_gpio = of_get_named_gpio(gf_dev->spi->dev.of_node,
 					     "goodix,gpio-irq", 0);
-	pr_info("gf::irq_gpio:%d\n", gf_dev->irq_gpio);
+	pr_debug("gf::irq_gpio:%d\n", gf_dev->irq_gpio);
 
 	if (!gpio_is_valid(gf_dev->irq_gpio)) {
-		pr_info("IRQ GPIO is invalid.\n");
+		pr_debug("IRQ GPIO is invalid.\n");
 		return -EPERM;
 	}
 
@@ -68,23 +68,23 @@ int gf_parse_dts(struct gf_dev *gf_dev)
 
 void gf_cleanup(struct gf_dev *gf_dev)
 {
-	pr_info("[info] %s\n", __func__);
+	pr_debug("[info] %s\n", __func__);
 
 	if (gpio_is_valid(gf_dev->irq_gpio)) {
 		gpio_free(gf_dev->irq_gpio);
-		pr_info("remove irq_gpio success\n");
+		pr_debug("remove irq_gpio success\n");
 	}
 
 	if (gpio_is_valid(gf_dev->reset_gpio)) {
 		gpio_free(gf_dev->reset_gpio);
-		pr_info("remove reset_gpio success\n");
+		pr_debug("remove reset_gpio success\n");
 	}
 
 #ifdef GF_PW_CTL
 
 	if (gpio_is_valid(gf_dev->pwr_gpio)) {
 		gpio_free(gf_dev->pwr_gpio);
-		pr_info("remove pwr_gpio success\n");
+		pr_debug("remove pwr_gpio success\n");
 	}
 
 #endif
@@ -97,9 +97,9 @@ int gf_power_on(struct gf_dev *gf_dev)
 
 	if (gpio_is_valid(gf_dev->pwr_gpio)) {
 		rc = gpio_direction_output(gf_dev->pwr_gpio, 1);
-		pr_info("---- power on result: %d----\n", rc);
+		pr_debug("---- power on result: %d----\n", rc);
 	} else {
-		pr_info("%s: gpio_is_invalid\n", __func__);
+		pr_debug("%s: gpio_is_invalid\n", __func__);
 	}
 
 #endif
@@ -114,9 +114,9 @@ int gf_power_off(struct gf_dev *gf_dev)
 
 	if (gpio_is_valid(gf_dev->pwr_gpio)) {
 		rc = gpio_direction_output(gf_dev->pwr_gpio, 0);
-		pr_info("---- power off result: %d----\n", rc);
+		pr_debug("---- power off result: %d----\n", rc);
 	} else {
-		pr_info("%s: gpio_is_invalid\n", __func__);
+		pr_debug("%s: gpio_is_invalid\n", __func__);
 	}
 
 #endif
@@ -126,7 +126,7 @@ int gf_power_off(struct gf_dev *gf_dev)
 int gf_hw_reset(struct gf_dev *gf_dev, unsigned int delay_ms)
 {
 	if (gf_dev == NULL) {
-		pr_info("Input buff is NULL.\n");
+		pr_debug("Input buff is NULL.\n");
 		return -EPERM;
 	}
 
@@ -134,14 +134,14 @@ int gf_hw_reset(struct gf_dev *gf_dev, unsigned int delay_ms)
 	mdelay(3);
 	gpio_set_value(gf_dev->reset_gpio, 1);
 	mdelay(delay_ms);
-	pr_info("%s\n", __func__);
+	pr_debug("%s\n", __func__);
 	return 0;
 }
 
 int gf_irq_num(struct gf_dev *gf_dev)
 {
 	if (gf_dev == NULL) {
-		pr_info("Input buff is NULL.\n");
+		pr_debug("Input buff is NULL.\n");
 		return -EPERM;
 	} else {
 		return gpio_to_irq(gf_dev->irq_gpio);
