@@ -96,7 +96,6 @@ config LOCALVERSION
 
 config LOCALVERSION_AUTO
 	bool "Automatically append version information to the version string"
-	default y
 	depends on !COMPILE_TEST
 	help
 	  This will try to automatically determine if the current tree is a
