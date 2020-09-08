@@ -338,9 +338,7 @@ struct fts_ts_info {
 	struct class *fts_tp_class;
 	struct device *fts_touch_dev;
 	char *current_clicknum_file;
-#ifdef CONFIG_SECURE_TOUCH
 	struct fts_secure_info *secure_info;
-#endif
 #ifdef CONFIG_I2C_BY_DMA
 	struct fts_dma_buf *dma_buf;
 #endif
@@ -390,5 +388,11 @@ bool fts_is_infod(void);
 void fts_get_pointer(int *touch_flag, int *x, int *y);
 #endif
 void fts_restore_regvalues(void);
+
+#ifdef CONFIG_FTS_BOOST
+int fts_palm_sensor_cmd(int input);
+int fts_p_sensor_cmd(int input);
+bool fts_touchmode_edgefilter(unsigned int touch_id, int x, int y);
+#endif
 
 #endif
