@@ -759,7 +759,7 @@ int dsi_panel_set_doze_backlight(struct dsi_display *display)
 		pr_info("[%s] set doze backlight before panel initialized!\n", dsi_display->name);
 		goto error;
 	}
-	if (drm_dev && (drm_dev->doze_state == MSM_DRM_BLANK_LP1 || drm_dev->doze_state == MSM_DRM_BLANK_LP2)) {
+	if (drm_dev && (drm_dev->doze_state == DRM_BLANK_LP1 || drm_dev->doze_state == DRM_BLANK_LP2)) {
 		if (panel->fod_hbm_enabled || panel->fod_dimlayer_hbm_enabled) {
 			pr_info("%s FOD HBM open, skip value:%u [hbm=%d][dimlayer_fod=%d][fod_bl=%d]\n", __func__,
 			panel->fod_hbm_enabled, panel->fod_dimlayer_hbm_enabled, panel->fod_backlight_flag);
@@ -2126,6 +2126,13 @@ static void dsi_panel_destroy_cmd_packets(struct dsi_panel_cmd_set *set)
 static void dsi_panel_dealloc_cmd_packets(struct dsi_panel_cmd_set *set)
 {
 	kfree(set->cmds);
+}
+
+static void dsi_panel_destroy_cmd_packets(struct dsi_panel_cmd_set *set)
+{
+	dsi_panel_destroy_cmds_packets_buf(set);
+	kfree(set->cmds);
+	set->count = 0;
 }
 
 static int dsi_panel_alloc_cmd_packets(struct dsi_panel_cmd_set *cmd,
