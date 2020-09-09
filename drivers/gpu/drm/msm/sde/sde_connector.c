@@ -731,10 +731,8 @@ int sde_connector_update_hbm(struct sde_connector *c_conn)
 				pr_debug("HBM fod off\n");
 				sysfs_notify(&dsi_display->drm_conn->kdev->kobj, NULL, "dimlayer_hbm_enabled");
 				pr_debug("notify hbm off to displayfeature\n");
-				dsi_display->panel->dc_enable = true;
-				pr_debug("fod restore DC\n");
-				sysfs_notify(&c_conn->bl_device->dev.kobj, NULL, "brightness_clone");
-			}
+				/* reset backlight level */
+				}
 			dsi_display->panel->fod_dimlayer_hbm_enabled = false;
 			mutex_unlock(&dsi_display->panel->panel_lock);
 			if (rc) {
@@ -758,11 +756,6 @@ int sde_connector_update_hbm(struct sde_connector *c_conn)
 				pr_debug("HBM fod on\n");
 				sysfs_notify(&dsi_display->drm_conn->kdev->kobj, NULL, "dimlayer_hbm_enabled");
 				pr_debug("notify hbm on to displayfeature\n");
-			}
-			if (dsi_display->panel->dc_enable) {
-				dsi_display->panel->dc_enable = false;
-				pr_debug("fod set CRC OFF\n");
-				dsi_display_write_panel(dsi_display, &dsi_display->panel->cur_mode->priv_info->cmd_sets[DSI_CMD_SET_DISP_CRC_OFF]);
 			}
 			dsi_display->panel->skip_dimmingon = STATE_DIM_BLOCK;
 			dsi_display->panel->fod_dimlayer_hbm_enabled = true;
