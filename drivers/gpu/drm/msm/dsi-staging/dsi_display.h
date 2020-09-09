@@ -617,14 +617,7 @@ void dsi_display_enable_event(struct drm_connector *connector,
 int dsi_display_set_backlight(struct drm_connector *connector,
 		void *display, u32 bl_lvl);
 
-/**
- * dsi_display_set_doze_backlight() - set doze backlight
- * @display:            Handle to display.
- */
-
 int dsi_panel_set_doze_backlight(struct dsi_display *display);
-
-ssize_t dsi_panel_get_doze_backlight(struct dsi_display *display, char *buf);
 
 /**
  * dsi_display_check_status() - check if panel is dead or alive
@@ -723,7 +716,5 @@ int dsi_display_cont_splash_config(void *display);
  */
 int dsi_display_get_panel_vfp(void *display,
 	int h_active, int v_active);
-
-struct dsi_display *get_primary_display(void);
 
 #endif /* _DSI_DISPLAY_H_ */
