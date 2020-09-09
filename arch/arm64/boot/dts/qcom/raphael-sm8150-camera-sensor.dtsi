@@ -255,7 +255,7 @@
 		cam_vana-supply = <&pm8150l_bob>;
 		cam_vdig-supply = <&pm8150l_s8>;
 		cam_clk-supply = <&titan_top_gdsc>;
-        cam_v_custom1-supply = <&pm8150_s5>;
+	cam_v_custom1-supply = <&pm8150_s5>;
 		cam_v_custom2-supply = <&pm8150_l17>;
 		regulator-names = "cam_vio", "cam_vana", "cam_vdig",
 			"cam_clk", "cam_v_custom1", "cam_v_custom2";
