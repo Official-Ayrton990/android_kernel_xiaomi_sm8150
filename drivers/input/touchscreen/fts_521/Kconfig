@@ -23,13 +23,3 @@ config TOUCHSCREEN_ST_DEBUG_FS
           Say Y here to enable  touch debugfs functionality.
 
           If unsure, say N.
-
-config FTS_BOOST
-	tristate "Open Source FTS Touch boost Feature"
-	depends on INPUT_TOUCHSCREEN
-	help
-	  Say Y here if you enable fts touch boost feature.
-
-	  If unsure, say N.
-
-	  To compile this driver as a module, choose M here:
