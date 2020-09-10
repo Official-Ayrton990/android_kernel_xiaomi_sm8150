@@ -49,6 +49,11 @@
 #define DSD_DISABLED   (1 << DSD_DISABLED_MASK)
 #define SLNQ_DISABLED  (1 << SLNQ_DISABLED_MASK)
 
+/* define sound control tunable*/
+#define CONFIG_SOUND_CONTROL
+struct snd_soc_codec *cs35l41_codec;
+static struct snd_soc_codec *sound_control_codec_ptr;
+
 /* Number of input and output Slimbus port */
 enum {
 	WCD934X_RX0 = 0,
