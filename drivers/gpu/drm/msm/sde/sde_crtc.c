@@ -4068,7 +4068,7 @@ static void sde_crtc_atomic_flush(struct drm_crtc *crtc,
 	_sde_crtc_wait_for_fences(crtc);
 
 	/* schedule the idle notify delayed work */
-	if (g_idleflag && idle_time && sde_encoder_check_mode(sde_crtc->mixers[0].encoder,
+	if (g_idleflag && idle_time && sde_encoder_check_curr_mode(sde_crtc->mixers[0].encoder,
 						MSM_DISPLAY_CAP_VID_MODE)) {
 		kthread_queue_delayed_work(&event_thread->worker,
 					&sde_crtc->idle_notify_work,

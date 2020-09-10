@@ -7806,18 +7806,10 @@ int dsi_display_post_enable(struct dsi_display *display)
 
 	mutex_lock(&display->display_lock);
 
-	if (display->panel->cur_mode->dsi_mode_flags & DSI_MODE_FLAG_POMS) {
-		if (display->config.panel_mode == DSI_OP_CMD_MODE)
-			dsi_panel_mode_switch_to_cmd(display->panel);
-
-		if (display->config.panel_mode == DSI_OP_VIDEO_MODE)
-			dsi_panel_mode_switch_to_vid(display->panel);
-	} else {
-		rc = dsi_panel_post_enable(display->panel);
-		if (rc)
-			pr_err("[%s] panel post-enable failed, rc=%d\n",
-			       display->name, rc);
-	}
+	rc = dsi_panel_post_enable(display->panel);
+	if (rc)
+		pr_err("[%s] panel post-enable failed, rc=%d\n",
+		       display->name, rc);
 
 	/* remove the clk vote for CMD mode panels */
 	if (display->config.panel_mode == DSI_OP_CMD_MODE)
@@ -7844,18 +7836,10 @@ int dsi_display_pre_disable(struct dsi_display *display)
 		dsi_display_clk_ctrl(display->dsi_clk_handle,
 			DSI_ALL_CLKS, DSI_CLK_ON);
 
-	if (display->poms_pending) {
-		if (display->config.panel_mode == DSI_OP_CMD_MODE)
-			dsi_panel_pre_mode_switch_to_video(display->panel);
-
-		if (display->config.panel_mode == DSI_OP_VIDEO_MODE)
-			dsi_panel_pre_mode_switch_to_cmd(display->panel);
-	} else {
-		rc = dsi_panel_pre_disable(display->panel);
-		if (rc)
-			pr_err("[%s] panel pre-disable failed, rc=%d\n",
-			       display->name, rc);
-	}
+	rc = dsi_panel_pre_disable(display->panel);
+	if (rc)
+		pr_err("[%s] panel pre-disable failed, rc=%d\n",
+		       display->name, rc);
 
 	mutex_unlock(&display->display_lock);
 	return rc;
