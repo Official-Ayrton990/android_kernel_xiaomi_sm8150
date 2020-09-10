@@ -3093,7 +3093,7 @@ void sde_crtc_complete_commit(struct drm_crtc *crtc,
 
 bool set_fod_dimlayer_status(struct drm_connector *connector, bool enable)
 {
-	struct dsi_display *dsi_display;
+	struct dsi_display *dsi_display = get_primary_display();
 
 	if (!connector || !dsi_display || !dsi_display->panel) {
 		SDE_ERROR("invalid param\n");
@@ -3107,7 +3107,7 @@ EXPORT_SYMBOL(set_fod_dimlayer_status);
 
 bool get_fod_dimlayer_status(struct drm_connector *connector)
 {
-	struct dsi_display *dsi_display;
+	struct dsi_display *dsi_display = get_primary_display();
 
 	if (!connector || !dsi_display || !dsi_display->panel) {
 		SDE_ERROR("invalid param\n");
@@ -3120,7 +3120,7 @@ EXPORT_SYMBOL(get_fod_dimlayer_status);
 
 bool get_fod_dimlayer_hbm_enabled_status(struct drm_connector *connector)
 {
-	struct dsi_display *dsi_display;
+	struct dsi_display *dsi_display = get_primary_display();
 
 	if (!connector || !dsi_display || !dsi_display->panel) {
 		SDE_ERROR("invalid param\n");
@@ -3134,7 +3134,7 @@ EXPORT_SYMBOL(get_fod_dimlayer_hbm_enabled_status);
 
 bool get_fod_ui_status(struct drm_connector *connector)
 {
-	struct dsi_display *dsi_display;
+	struct dsi_display *dsi_display = get_primary_display();
 
 	if (!connector || !dsi_display || !dsi_display->panel) {
 		SDE_ERROR("invalid param\n");
@@ -3152,7 +3152,7 @@ void sde_crtc_fod_ui_ready(struct drm_crtc *crtc,
 	struct sde_crtc_state *old_cstate;
 	struct sde_crtc_state *cstate;
 	struct msm_drm_notifier notify_data;
-	struct dsi_display *dsi_display;
+	struct dsi_display *dsi_display = get_primary_display();
 	int finger_down;
 	static bool fod_status_changed;
 
@@ -5459,7 +5459,7 @@ static int sde_crtc_fod_atomic_check(struct sde_crtc_state *cstate,
 	int plane_idx = 0;
 	int rc = 0;
 	int dim_layer_zpos = INT_MAX;
-	struct dsi_display *dsi_display;
+	struct dsi_display *dsi_display = get_primary_display();
 
 	if (dsi_display == NULL || dsi_display->panel == NULL) {
 		SDE_ERROR("dsi display panel is null\n");
@@ -5471,6 +5471,7 @@ static int sde_crtc_fod_atomic_check(struct sde_crtc_state *cstate,
 	}
 
 	for (plane_idx = 0; plane_idx < cnt; plane_idx++) {
+		fod_property_value = sde_plane_check_fod_layer(pstates[plane_idx].drm_pstate);
 		if (fod_property_value == 1) {
 			fod_icon_plane_idx = plane_idx;
 		} else if (fod_property_value == 2) {
