@@ -1663,22 +1663,8 @@ struct device_attribute *attr, char *buf)
 	return snprintf(buf, PAGE_SIZE, "%d\n", atomic_read(&switch_mode));
 }
 
-static ssize_t
-thermal_sconfig_store(struct device *dev,
-struct device_attribute *attr, const char *buf, size_t len)
-{
-	int ret, val = -1;
-
-	ret = kstrtoint(buf, 10, &val);
-	atomic_set(&switch_mode, val);
-
-	if (ret)
-		return ret;
-	return len;
-}
-
-static DEVICE_ATTR(sconfig, 0664,
-		   thermal_sconfig_show, thermal_sconfig_store);
+static DEVICE_ATTR(sconfig, 0444,
+		   thermal_sconfig_show, NULL);
 
 static ssize_t
 thermal_boost_show(struct device *dev,
