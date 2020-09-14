@@ -710,13 +710,6 @@
 #define CS35L41_TX_FORMATS (SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S24_LE \
 				| SNDRV_PCM_FMTBIT_S32_LE)
 
-/* Define Sound Control tunable*/
-#define CONFIG_SOUND_CONTROL
-
-#ifdef CONFIG_SOUND_CONTROL
-extern struct snd_soc_codec *cs35l41_codec;
-#endif
-
 bool cs35l41_readable_reg(struct device *dev, unsigned int reg);
 bool cs35l41_precious_reg(struct device *dev, unsigned int reg);
 bool cs35l41_volatile_reg(struct device *dev, unsigned int reg);

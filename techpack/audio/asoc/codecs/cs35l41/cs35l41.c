@@ -1534,10 +1534,6 @@ static int cs35l41_codec_probe(struct snd_soc_codec *codec)
 	snd_soc_dapm_ignore_suspend(dapm, "DSP1 Preloader");
 	snd_soc_dapm_ignore_suspend(dapm, "DSP1 Preload");
 
-#ifdef CONFIG_SOUND_CONTROL
-	cs35l41_codec = codec;
-#endif
-
 	return 0;
 }
 
