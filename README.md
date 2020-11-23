@@ -33,4 +33,8 @@ To avoid problems of ROM not booting please git checkout PELT and revert the fol
 - 3c947158dc9ca7aad8fc532564d9657f54f5135d
 - eb4b8535bea2dc9fedf6b05a57825a9b976ec20b
 
+If you are not using libperfmgr and only power hal from CAF please revert this commit:
+
+- fd76643c90795ec1d660f9a44b3c5005a692af76
+
 This however is not necessary if you are using Clang-11 versions or above.
