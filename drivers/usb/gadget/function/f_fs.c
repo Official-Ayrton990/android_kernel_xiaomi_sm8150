@@ -1398,9 +1398,6 @@ static long ffs_epfile_ioctl(struct file *file, unsigned code,
 		switch (epfile->ffs->gadget->speed) {
 		case USB_SPEED_SUPER_PLUS:
 		case USB_SPEED_SUPER:
-		case USB_SPEED_SUPER_PLUS:
-			desc_idx = 2;
-			break;
 		case USB_SPEED_HIGH:
 			desc_idx = 1;
 			break;
@@ -3339,9 +3336,8 @@ static int _ffs_func_bind(struct usb_configuration *c,
 	}
 
 	if (likely(super)) {
-		func->function.ss_descriptors = func->function.ssp_descriptors =
-			vla_ptr(vlabuf, d, ss_descs);
-		ss_len = ffs_do_descs(ffs->ss_descs_count,
+		func->function.ss_descriptors = vla_ptr(vlabuf, d, ss_descs);
+		ss_len = ffs_do_descs(ffs, ffs->ss_descs_count,
 				vla_ptr(vlabuf, d, raw_descs) + fs_len + hs_len,
 				d_raw_descs__sz - fs_len - hs_len,
 				__ffs_func_bind_do_descs, func);
