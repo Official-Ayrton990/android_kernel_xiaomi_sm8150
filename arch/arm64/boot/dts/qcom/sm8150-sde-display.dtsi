@@ -477,37 +477,13 @@
 
 	dsi_rm69299_visionox_amoled_vid_display: qcom,dsi-display@23 {
 		label = "dsi_rm69299_visionox_amoled_vid_display";
-                qcom,display-type = "primary";
-
-                qcom,dsi-ctrl-num = <0>;
-                qcom,dsi-phy-num = <0>;
-                qcom,dsi-select-clocks = "mux_byte_clk0", "mux_pixel_clk0";
-
-                qcom,dsi-panel = <&dsi_rm69299_visionox_amoled_video>;
-	};
-
-	dsi_ss_fhd_ea8076_cmd_display: qcom,dsi-display@24 {
-
-		label = "dsi_ss_fhd_ea8076_cmd_display";
 		qcom,display-type = "primary";
 
 		qcom,dsi-ctrl-num = <0>;
 		qcom,dsi-phy-num = <0>;
 		qcom,dsi-select-clocks = "mux_byte_clk0", "mux_pixel_clk0";
 
-		qcom,dsi-panel = <&dsi_ss_fhd_ea8076_cmd>;
-	};
-
-	dsi_ss_fhd_ea8076_global_cmd_display: qcom,dsi-display@25 {
-
-		label = "dsi_ss_fhd_ea8076_global_cmd_display";
-		qcom,display-type = "primary";
-
-		qcom,dsi-ctrl-num = <0>;
-		qcom,dsi-phy-num = <0>;
-		qcom,dsi-select-clocks = "mux_byte_clk0", "mux_pixel_clk0";
-
-		qcom,dsi-panel = <&dsi_ss_fhd_ea8076_global_cmd>;
+		qcom,dsi-panel = <&dsi_rm69299_visionox_amoled_video>;
 	};
 
 	dsi_samsung_fhd_ea8076_cmd_display: qcom,dsi-display@24 {
