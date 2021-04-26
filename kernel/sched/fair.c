@@ -7431,21 +7431,9 @@ static inline bool task_fits_capacity(struct task_struct *p,
 	 * CPU.
 	 */
 	if (capacity_orig_of(task_cpu(p)) > capacity_orig_of(cpu))
-<<<<<<< HEAD
-		margin = schedtune_task_boost(p) > 0 &&
-			   p->prio <= DEFAULT_PRIO ?
-			sched_capacity_margin_down_boosted[cpu] :
-			sched_capacity_margin_down[cpu];
-	else
-		margin = schedtune_task_boost(p) > 0 &&
-			   p->prio <= DEFAULT_PRIO ?
-			sched_capacity_margin_up_boosted[task_cpu(p)] :
-			sched_capacity_margin_up[task_cpu(p)];
-=======
 		margin = sched_capacity_margin_down[cpu];
 	else
 		margin = sched_capacity_margin_up[task_cpu(p)];
->>>>>>> 1ccb78c03bc2b (sched: revert Google's capacity margin tricks)
 
 	return capacity * 1024 > boosted_task_util(p) * margin;
 }
